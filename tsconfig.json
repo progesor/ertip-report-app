@@ -12,6 +12,9 @@
       "@ertip/config": [
         "packages/config/src/index.ts"
       ],
+      "@ertip/db": [
+        "packages/db/src/index.ts"
+      ],
       "@ertip/odoo-client": [
         "packages/odoo-client/src/index.ts"
       ],
