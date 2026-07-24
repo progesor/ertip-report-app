@@ -1,0 +1,43 @@
+name: Auth Browser Diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  auth-browser-diagnostic:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ertip
+          POSTGRES_PASSWORD: ertip
+          POSTGRES_DB: ertip_report
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ertip -d ertip_report"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CI: true
+      NEXT_TELEMETRY_DISABLED: 1
+      DATABASE_URL: postgresql://ertip:ertip@127.0.0.1:5432/ertip_report
+      DATABASE_SSL: 'false'
+    steps:
+      - name: Run focused auth browser test
+        run: |
+          git clone --quiet --depth 1 --branch feature/m1-auth-database "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          corepack enable
+          corepack prepare pnpm@11.4.0 --activate >/dev/null
+          pnpm install --no-frozen-lockfile --reporter=silent
+          pnpm exec playwright install --with-deps chromium >/dev/null
+          pnpm build >/dev/null
+          pnpm browser:auth
