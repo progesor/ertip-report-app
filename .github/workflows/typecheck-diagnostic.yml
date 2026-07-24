@@ -1,8 +1,8 @@
 name: Typecheck Diagnostic
 
 on:
-  push:
-    branches: [feature/m1-auth-database]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
