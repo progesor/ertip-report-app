@@ -12,7 +12,7 @@ Hedef: gerçek Odoo veri modelini ve rapor kurallarını doğrulamak.
 - satış alan envanteri
 - Studio özel alanları
 - tarih ve durum eşlemeleri
-- örnek Mart/ay tutarsızlığı analizi
+- seçili tutarsız ayın kayıt bazlı analizi
 - onaylanmış metrik sözlüğü
 
 Çıkış kriteri: İlk raporun her metriği örnek kayıtlar üzerinden açıklanabilir.

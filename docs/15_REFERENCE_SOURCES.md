@@ -6,6 +6,10 @@ Bu kaynaklar 24 Temmuz 2026 tarihinde mimari kararları doğrulamak amacıyla ku
 
 - External JSON-2 API, Odoo 19: https://www.odoo.com/documentation/19.0/developer/reference/external_api.html
 - External RPC API ve deprecation bilgisi: https://www.odoo.com/documentation/19.0/developer/reference/external_rpc_api.html
+- Odoo 19 Studio alanları: https://www.odoo.com/documentation/19.0/applications/studio/fields.html
+- Odoo 19 `sale.order` kaynak modeli: https://github.com/odoo/odoo/blob/19.0/addons/sale/models/sale_order.py
+- Odoo 19 `sale.order.line` kaynak modeli: https://github.com/odoo/odoo/blob/19.0/addons/sale/models/sale_order_line.py
+- Odoo 19 `res.company` kaynak modeli: https://github.com/odoo/odoo/blob/19.0/odoo/addons/base/models/res_company.py
 
 ## Coolify
 
