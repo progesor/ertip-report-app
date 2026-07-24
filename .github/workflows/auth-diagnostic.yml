@@ -19,6 +19,7 @@ jobs:
     steps:
       - name: Run focused auth browser test
         run: |
+          docker pull postgres:17-alpine >/dev/null 2>&1
           docker run --detach --rm --name ertip-auth-postgres \
             --publish 5432:5432 \
             --env POSTGRES_USER=ertip \
@@ -38,4 +39,8 @@ jobs:
           pnpm install --no-frozen-lockfile --reporter=silent
           pnpm exec playwright install --with-deps chromium >/dev/null 2>&1
           pnpm build >/dev/null 2>&1
-          pnpm exec playwright test --config apps/web/playwright.auth.config.ts --reporter=line --workers=1
+          set +e
+          pnpm exec playwright test --config apps/web/playwright.auth.config.ts --reporter=line --workers=1 > /tmp/playwright-auth.log 2>&1
+          status=$?
+          tail -n 120 /tmp/playwright-auth.log
+          exit $status
