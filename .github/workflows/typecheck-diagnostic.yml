@@ -1,0 +1,23 @@
+name: Typecheck Diagnostic
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck-diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run focused typecheck
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --quiet --depth 1 --branch feature/m1-foundation "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          corepack enable
+          corepack prepare pnpm@11.4.0 --activate >/dev/null
+          pnpm install --no-frozen-lockfile --reporter=silent
+          pnpm typecheck
