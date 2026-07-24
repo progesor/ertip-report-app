@@ -17,6 +17,33 @@ const ownerItems = [
   'Denetim Kayıtları',
 ] as const;
 
+interface DashboardUser {
+  readonly displayName: string;
+  readonly email: string;
+  readonly role: AppRole;
+}
+
+interface LatestOdooCheck {
+  readonly status: 'success' | 'failure';
+  readonly serverVersion: string | null;
+  readonly companyCount: number | null;
+  readonly durationMs: number;
+  readonly safeErrorCode: string | null;
+  readonly checkedAt: string;
+}
+
+interface OdooTestResponse {
+  readonly ok?: boolean;
+  readonly error?: string;
+  readonly code?: string;
+  readonly result?: {
+    readonly serverVersion: string;
+    readonly companyCount: number;
+    readonly durationMs: number;
+    readonly checkedAt: string;
+  };
+}
+
 function MetricCard({
   label,
   value,
@@ -32,13 +59,96 @@ function MetricCard({
   );
 }
 
+function formatDashboardDate(isoValue: string): string {
+  return new Intl.DateTimeFormat('tr-TR', {
+    timeZone: 'Europe/Istanbul',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    weekday: 'long',
+  }).format(new Date(isoValue));
+}
+
+function getGreeting(isoValue: string): string {
+  const hour = Number(
+    new Intl.DateTimeFormat('tr-TR', {
+      timeZone: 'Europe/Istanbul',
+      hour: '2-digit',
+      hour12: false,
+    }).format(new Date(isoValue)),
+  );
+
+  if (hour < 12) {
+    return 'Günaydın';
+  }
+
+  if (hour < 18) {
+    return 'İyi günler';
+  }
+
+  return 'İyi akşamlar';
+}
+
 export function DashboardShell({
   demoMode,
   odooConfigured,
-}: Readonly<{ demoMode: boolean; odooConfigured: boolean }>) {
-  const [role, setRole] = useState<AppRole>('owner');
+  user,
+  latestOdooCheck,
+  nowIso,
+}: Readonly<{
+  demoMode: boolean;
+  odooConfigured: boolean;
+  user: DashboardUser;
+  latestOdooCheck: LatestOdooCheck | null;
+  nowIso: string;
+}>) {
+  const [previewRole, setPreviewRole] = useState<AppRole>(user.role);
+  const [connectionCheck, setConnectionCheck] = useState<{
+    readonly state: 'idle' | 'testing' | 'success' | 'failure';
+    readonly message: string;
+  }>({
+    state: latestOdooCheck?.status ?? 'idle',
+    message:
+      latestOdooCheck?.status === 'success'
+        ? `${latestOdooCheck.serverVersion ?? 'Odoo'} · ${latestOdooCheck.companyCount ?? 0} şirket · ${latestOdooCheck.durationMs} ms`
+        : latestOdooCheck?.status === 'failure'
+          ? `Son test başarısız: ${latestOdooCheck.safeErrorCode ?? 'Bilinmeyen hata'}`
+          : 'Henüz canlı bağlantı testi yapılmadı.',
+  });
+  const role = demoMode ? previewRole : user.role;
   const canManage = can(role, 'admin:connections');
   const maxTrend = Math.max(...monthlyTrend.map(({ value }) => value));
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.assign('/');
+  }
+
+  async function handleOdooTest() {
+    setConnectionCheck({ state: 'testing', message: 'Odoo bağlantısı doğrulanıyor…' });
+
+    try {
+      const response = await fetch('/api/owner/odoo/test', { method: 'POST' });
+      const payload = (await response.json()) as OdooTestResponse;
+
+      if (!response.ok || !payload.ok || !payload.result) {
+        setConnectionCheck({
+          state: 'failure',
+          message: payload.code
+            ? `${payload.error ?? 'Bağlantı testi başarısız.'} (${payload.code})`
+            : payload.error ?? 'Bağlantı testi başarısız.',
+        });
+        return;
+      }
+
+      setConnectionCheck({
+        state: 'success',
+        message: `${payload.result.serverVersion} · ${payload.result.companyCount} şirket · ${payload.result.durationMs} ms`,
+      });
+    } catch {
+      setConnectionCheck({ state: 'failure', message: 'Bağlantı testi sırasında sunucuya ulaşılamadı.' });
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -69,38 +179,66 @@ export function DashboardShell({
 
         <div className="sidebar-footer">
           <span className={odooConfigured ? 'status online' : 'status warning'} />
-          <div><strong>{odooConfigured ? 'Odoo hazır' : 'Odoo yapılandırılıyor'}</strong><small>Salt okunur bağlantı</small></div>
+          <div><strong>{odooConfigured ? 'Odoo secret hazır' : 'Odoo yapılandırılıyor'}</strong><small>Salt okunur bağlantı</small></div>
         </div>
       </aside>
 
       <main>
         <header className="topbar">
-          <div><span className="eyebrow">24 Temmuz 2026 · Cuma</span><h1>Günaydın, Anıl</h1></div>
+          <div>
+            <span className="eyebrow">{formatDashboardDate(nowIso)}</span>
+            <h1>{getGreeting(nowIso)}, {user.displayName.split(' ')[0]}</h1>
+          </div>
           {demoMode ? (
             <div className="role-switch" aria-label="Demo rol önizlemesi">
               {(['owner', 'manager'] as const).map((item) => (
                 <button
-                  aria-pressed={role === item}
-                  className={role === item ? 'selected' : ''}
+                  aria-pressed={previewRole === item}
+                  className={previewRole === item ? 'selected' : ''}
                   key={item}
-                  onClick={() => setRole(item)}
+                  onClick={() => setPreviewRole(item)}
                   type="button"
                 >
                   {item === 'owner' ? 'Owner' : 'Manager'}
                 </button>
               ))}
             </div>
-          ) : null}
+          ) : (
+            <div className="user-menu">
+              <div>
+                <strong>{user.displayName}</strong>
+                <span>{user.role === 'owner' ? 'Owner' : 'Manager'} · {user.email}</span>
+              </div>
+              <button onClick={handleLogout} type="button">Çıkış</button>
+            </div>
+          )}
         </header>
 
         <section className="hero">
           <div>
-            <div className="badges"><span>Yurt Dışı</span><span>Temmuz 2026</span>{demoMode ? <span>Demo veri</span> : null}</div>
+            <div className="badges"><span>Yurt Dışı</span><span>Temmuz 2026</span>{demoMode ? <span>Demo veri</span> : <span>Rapor taslağı</span>}</div>
             <h2>Aylık Teklif Performansı</h2>
             <p>Teklif üretimini, dönüşümü ve müşteri dağılımını tek güvenilir görünümde izleyin.</p>
           </div>
           <div className="actions"><button type="button">Yazdır</button><button type="button">Excel</button><button className="primary" type="button">Raporu Aç</button></div>
         </section>
+
+        {canManage && !demoMode ? (
+          <section className={`connection-banner ${connectionCheck.state}`} aria-live="polite">
+            <div>
+              <span className="eyebrow">Owner bağlantı kontrolü</span>
+              <h3>Odoo Online JSON-2</h3>
+              <p>{connectionCheck.message}</p>
+            </div>
+            <button
+              disabled={!odooConfigured || connectionCheck.state === 'testing'}
+              onClick={handleOdooTest}
+              type="button"
+            >
+              {connectionCheck.state === 'testing' ? 'Test Ediliyor…' : 'Odoo Bağlantısını Test Et'}
+            </button>
+          </section>
+        ) : null}
 
         <section className="metric-grid" aria-label="Ana performans göstergeleri">
           <MetricCard change="+12,4%" label="Toplam Teklif" tone="cyan" value="34" />
@@ -143,7 +281,7 @@ export function DashboardShell({
           </div>
         </section>
 
-        <footer><span className={odooConfigured ? 'status online' : 'status warning'} />{odooConfigured ? 'Odoo bağlantı bilgileri hazır.' : 'API anahtarı Coolify runtime secret olarak bekleniyor.'}<a href="/api/system/status">Sistem durumu</a></footer>
+        <footer><span className={odooConfigured ? 'status online' : 'status warning'} />{odooConfigured ? 'Odoo runtime secret hazır.' : 'API anahtarı Coolify runtime secret olarak bekleniyor.'}<a href="/api/system/status">Sistem durumu</a></footer>
       </main>
     </div>
   );
