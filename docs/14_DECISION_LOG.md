@@ -53,3 +53,15 @@
 **Karar:** İlk sürüm Odoo’ya veri yazmayacaktır.
 
 **Neden:** Raporlama ürününün risk alanını sınırlamak ve kaynak veriyi korumak.
+
+## ADR-010 — Odoo 19 JSON-2 adaptörü
+
+**Karar:** Odoo 19 entegrasyonunda birincil adaptör External JSON-2 API olacaktır.
+
+**Neden:** JSON-2 Odoo 19'da sunulan güncel dış API yüzeyidir; tenant'a özgü modeller `/doc` ve `fields_get` ile keşfedilebilir. Legacy RPC yalnızca sürüm geri dönüşü için adaptör sınırının arkasında tutulur.
+
+## ADR-011 — Teklif kohortu için değişmez tarih
+
+**Karar:** İlk raporda teklif üretim kohortu için başlangıç alanı `sale.order.create_date` olacaktır; `date_order` kohort alanı olarak kullanılmayacaktır. Canlı tenant'ta güvenilir özel teklif tarihi bulunursa kayıt bazlı karşılaştırma ve yeni ADR gerekir.
+
+**Neden:** Odoo 19'da `date_order` taslak/gönderilmiş teklifte oluşturma, onaylı siparişte onay tarihi semantiği taşır. Durum değişimi aynı kaydı başka aya taşıyarak rapor tutarsızlığı üretebilir.

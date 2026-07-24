@@ -54,9 +54,11 @@ Müşteri başına teklif sayısı, sonuç dağılımı, son teklif tarihi ve de
 
 ## 3. Teklif kohortu
 
-“Bu ay kaç teklif yapıldı?” sorusunun varsayılan yanıtı teklifin ilk oluşturulduğu döneme göre hesaplanır. Onaylandığı ay ayrıca raporlanır.
+“Bu ay kaç teklif yapıldı?” sorusunun varsayılan yanıtı teklifin ilk oluşturulduğu döneme göre hesaplanır. Odoo 19 standart modelinde bunun ilk kanonik alan adayı `sale.order.create_date` değeridir. Onaylandığı dönem ayrı bir tarih ekseni olarak raporlanır.
 
-Bu ayrım sayesinde geçmişte oluşturulan bir teklif daha sonra sipariş olduğunda teklif üretim performansı başka aya taşınmaz.
+`sale.order.date_order` teklif üretim kohortu için kullanılmaz; bu alan taslak/gönderilmiş kayıtta oluşturma tarihini, onaylı kayıtta onay tarihini temsil edebildiği için kayıt durum değiştirince ay değiştirebilir. Varsa özel Studio teklif tarihi alanı M0'da `create_date` ile kayıt bazında karşılaştırılır.
+
+Bu ayrım sayesinde geçmişte oluşturulan bir teklif daha sonra sipariş olduğunda teklif üretim performansı başka aya taşınmaz. Kesin alan seçimi canlı mutabakat ve metrik sözlüğü onayıyla sürümlenir.
 
 ## 4. Durumlar
 
