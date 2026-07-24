@@ -40,4 +40,4 @@ jobs:
           pnpm install --no-frozen-lockfile --reporter=silent
           pnpm exec playwright install --with-deps chromium >/dev/null
           pnpm build >/dev/null
-          pnpm browser:auth
+          pnpm exec playwright test --config apps/web/playwright.auth.config.ts --reporter=line --workers=1
