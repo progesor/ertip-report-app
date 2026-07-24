@@ -1,4 +1,4 @@
-name: Typecheck Diagnostic
+name: Browser Diagnostic
 
 on:
   pull_request:
@@ -8,16 +8,25 @@ permissions:
   contents: read
 
 jobs:
-  typecheck-diagnostic:
+  browser-diagnostic:
     runs-on: ubuntu-latest
     steps:
-      - name: Run focused typecheck
+      - name: Run focused browser smoke
         env:
           GH_TOKEN: ${{ github.token }}
+          CI: true
+          NEXT_TELEMETRY_DISABLED: 1
+          APP_ENV: test
+          APP_DEMO_MODE: true
+          ODOO_BASE_URL: https://ertipmedical.odoo.com
+          ODOO_DATABASE: ertipmedical
+          ODOO_API_KEY: ''
         run: |
           git clone --quiet --depth 1 --branch feature/m1-auth-database "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" source
           cd source
           corepack enable
           corepack prepare pnpm@11.4.0 --activate >/dev/null
           pnpm install --no-frozen-lockfile --reporter=silent
-          pnpm typecheck
+          pnpm exec playwright install --with-deps chromium >/dev/null
+          pnpm build >/dev/null
+          pnpm browser:smoke
