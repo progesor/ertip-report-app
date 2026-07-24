@@ -1,0 +1,100 @@
+project:
+  name: Ertip Report App
+  type: private-management-reporting-web-app
+  primary_language: tr
+  repository_visibility: private
+  deployment_platform: coolify
+
+source_system:
+  product: Odoo Online
+  plan: Custom
+  database_count: 1
+  company_count: 2
+  access_mode: read_only_external_api
+  preferred_api:
+    odoo_19_plus: json2
+    older_versions: version_appropriate_rpc_adapter
+
+users:
+  expected_scale: small
+  roles:
+    owner:
+      can_manage_connections: true
+      can_manage_reports: true
+      can_manage_users: true
+      can_view_all_scopes: true
+    manager:
+      can_manage_connections: false
+      can_manage_reports: false
+      can_run_published_reports: true
+      can_export_reports: true
+  employee_access: false
+
+organization:
+  application_concept: business_unit
+  source_mapping: odoo_res_company_id
+  initial_units:
+    - Yurt Dışı
+    - Yurt İçi
+
+product_scope:
+  first_report: international_monthly_quotation_performance
+  report_modes:
+    - general
+    - salesperson
+    - customer
+  exports:
+    - print
+    - pdf
+    - xlsx
+  owner_report_builder:
+    phase: later
+    audience: owner_only
+
+architecture:
+  style: modular_monolith_with_worker
+  web: nextjs
+  language: typescript
+  database: postgresql
+  cache_queue: redis
+  worker: background_sync_and_exports
+  reporting_source: local_reporting_database
+  direct_browser_to_odoo: forbidden
+
+ui:
+  direction: executive_intelligence
+  desktop_first: true
+  responsive: true
+  themes:
+    - dark
+    - light
+  characteristics:
+    - professional
+    - premium
+    - expressive_but_controlled
+    - easy_to_understand
+    - print_friendly
+
+deployment:
+  environments:
+    staging:
+      branch: develop
+      auto_deploy: true
+    production:
+      branch: main
+      auto_deploy: true
+  required_ci_checks:
+    - format
+    - lint
+    - typecheck
+    - unit
+    - integration
+    - build
+    - browser_smoke
+
+security:
+  odoo_api_key_client_exposure: forbidden
+  source_access: read_only
+  secrets_location: runtime_environment
+  audit_logging: required
+  business_unit_scope_enforcement: server_side
