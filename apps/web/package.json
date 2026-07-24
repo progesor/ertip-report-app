@@ -1,6 +1,6 @@
 {
   "name": "@ertip/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,6 +11,8 @@
   "dependencies": {
     "@ertip/auth": "workspace:*",
     "@ertip/config": "workspace:*",
+    "@ertip/db": "workspace:*",
+    "@ertip/odoo-client": "workspace:*",
     "@ertip/reporting": "workspace:*",
     "next": "16.2.11",
     "react": "19.2.7",
