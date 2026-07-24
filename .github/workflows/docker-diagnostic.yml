@@ -1,0 +1,20 @@
+name: Docker Diagnostic
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build application image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --quiet --depth 1 --branch feature/m1-foundation "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          docker build --progress=plain --tag ertip-report-app:diagnostic .
