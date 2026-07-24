@@ -144,7 +144,11 @@ export function createOdooClient(
       return (payload ?? {}) as OdooVersionInfo;
     },
 
-    async call<TResult>(model, method, params = {}) {
+    async call<TResult>(
+      model: string,
+      method: ReadOnlyOdooMethod,
+      params: Readonly<Record<string, unknown>> = {},
+    ): Promise<TResult> {
       validateMethod(method);
       const safeModel = validateModel(model);
       const url = new URL(
