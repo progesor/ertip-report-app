@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const ownerEmail = 'owner.browser@ertipmedical.com';
 const ownerPassword = 'BrowserOwnerPassword2026';
 
-test('first Owner can bootstrap, log out and log back in', async ({ page, request }) => {
+test('first Owner can bootstrap, reject invalid login and log back in', async ({ page, request }) => {
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'İlk Owner hesabını oluşturun' })).toBeVisible();
@@ -30,19 +30,15 @@ test('first Owner can bootstrap, log out and log back in', async ({ page, reques
   await page.getByRole('button', { name: 'Çıkış' }).click();
   await expect(page.getByRole('heading', { name: 'Yönetici girişi' })).toBeVisible();
 
+  await page.getByLabel('E-posta').fill('unknown@example.com');
+  await page.getByLabel('Parola').fill('IncorrectPassword2026');
+  await page.getByRole('button', { name: 'Giriş Yap' }).click();
+  await expect(page.locator('.form-error')).toHaveText('E-posta veya parola doğrulanamadı.');
+
   await page.getByLabel('E-posta').fill(ownerEmail);
   await page.getByLabel('Parola').fill(ownerPassword);
   await page.getByRole('button', { name: 'Giriş Yap' }).click();
 
   await expect(page.getByRole('heading', { name: 'Aylık Teklif Performansı' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toBeVisible();
-});
-
-test('invalid credentials do not reveal account existence', async ({ page }) => {
-  await page.goto('/');
-  await page.getByLabel('E-posta').fill('unknown@example.com');
-  await page.getByLabel('Parola').fill('IncorrectPassword2026');
-  await page.getByRole('button', { name: 'Giriş Yap' }).click();
-
-  await expect(page.getByRole('alert')).toHaveText('E-posta veya parola doğrulanamadı.');
 });
