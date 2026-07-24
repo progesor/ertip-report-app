@@ -23,6 +23,21 @@ env:
   ODOO_API_KEY: ''
 
 jobs:
+  diagnostic-install:
+    name: diagnostic_install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve dependency graph
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -o pipefail
+          git clone --quiet --depth 1 --branch feature/m1-foundation "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" source
+          cd source
+          corepack enable
+          corepack prepare pnpm@11.4.0 --activate
+          pnpm install --no-frozen-lockfile --reporter=append-only
+
   format:
     name: format
     runs-on: ubuntu-latest
