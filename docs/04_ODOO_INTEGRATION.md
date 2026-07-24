@@ -3,8 +3,8 @@
 ## 1. Entegrasyon yaklaşımı
 
 - Odoo Online Custom plan API erişimi kullanılır.
-- Odoo sürümü keşif aşamasında kesinleştirilir.
-- Odoo 19 ve üzeri için External JSON-2 API tercih edilir.
+- Kullanıcı beyan edilen ana sürüm Odoo 19'dur; minor/build sürümü canlı endpoint ile doğrulanacaktır.
+- Odoo 19 için External JSON-2 API birincil ve kanonik adaptördür.
 - Daha eski sürümlerde sürüme uygun RPC adaptörü kullanılabilir.
 - Raporlama uygulaması browser’dan Odoo’ya doğrudan bağlanmaz.
 - Entegrasyon kullanıcısı mümkün olan en düşük, salt okunur yetkilere sahip olur.
@@ -21,6 +21,8 @@
 
 API key şifreli veya güvenli secret store üzerinden saklanmalı; loglarda ve hata mesajlarında maskelenmelidir.
 
+JSON-2 istek sözleşmesi `/json/2/<model>/<method>` yolunu, bearer API key'i ve gerektiğinde `X-Odoo-Database` header'ını kullanır. Tenant'a özel model ve yöntemler `/doc` dinamik dokümantasyonundan doğrulanır.
+
 ## 3. İlk keşfedilecek modeller
 
 - `res.company`
@@ -33,7 +35,7 @@ API key şifreli veya güvenli secret store üzerinden saklanmalı; loglarda ve 
 - `res.currency`
 - gerekli Studio özel alanları
 
-İlk keşif, yalnızca standart alan varsayımlarına dayanmayacaktır. Gerçek tenant üzerindeki `ir.model` ve `ir.model.fields` bilgileri incelenmelidir.
+İlk keşif, yalnızca standart alan varsayımlarına dayanmayacaktır. Gerçek tenant üzerindeki `fields_get` sonucu ve yetki varsa `ir.model`/`ir.model.fields` bilgileri incelenmelidir. Studio alanları için tüm `x_`, özellikle `x_studio_` önekleri envantere alınır.
 
 ## 4. Kaynak kimliği
 
@@ -74,6 +76,8 @@ Odoo ID değeri tek başına global kimlik olarak kullanılmaz.
 
 ## 7. Tarih alanları
 
+Odoo 19 için kritik kaynak davranışı: `sale.order.date_order`, taslak/gönderilmiş kayıtta oluşturma tarihini; onaylanmış `sale` kaydında onay tarihini temsil eder. Bu nedenle aylık teklif üretim kohortu için değişmez tarih olarak kullanılamaz. İlk kanonik aday `create_date` değeridir; varsa iş tarafından kullanılan Studio teklif tarihi canlı kayıtlarla ayrıca karşılaştırılır.
+
 Aşağıdaki kavramlar birbirine karıştırılmaz:
 
 - kayıt oluşturma zamanı,
@@ -105,6 +109,20 @@ Kesin eşleme M0 veri keşfi sonucunda karara bağlanır ve sürümlenmiş metri
 - Owner ekranında hata özeti
 - Secret ve kişisel veri içermeyen yapılandırılmış log
 
-## 10. Odoo’ya yazma
+## 10. Salt okunur yöntem politikası
+
+İzin verilen yöntem allowlist'i başlangıçta şunlarla sınırlıdır:
+
+- `fields_get`
+- `search`
+- `read`
+- `search_read`
+- `search_count`
+
+`create`, `write`, `unlink`, `action_confirm` ve başka iş eylemleri adaptör yüzeyinde bulunmayacaktır. Salt okunur yetki, gerçek kaydı değiştiren negatif API denemesiyle değil ACL/yetki incelemesiyle doğrulanır.
+
+## 11. Odoo’ya yazma
 
 İlk sürüm salt okunurdur. Odoo üzerinde kayıt oluşturma, güncelleme veya silme fonksiyonları uygulanmayacaktır.
+
+M0 canlı keşif süreci `docs/development/M0_LIVE_DISCOVERY_RUNBOOK.md` ile yürütülür.

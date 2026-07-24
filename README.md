@@ -1,39 +1,54 @@
 # Ertip Report App
 
-Ertip Report App, Odoo ERP verilerini güvenli biçimde okuyarak yöneticilere hazırlanmış, kolay anlaşılır ve yazdırılabilir raporlar sunan özel bir web uygulamasıdır.
+Odoo Online Custom verilerini güvenli, salt okunur bir entegrasyonla yerel raporlama katmanına taşıyacak özel yönetim raporlama uygulaması.
 
-Bu paket, geliştirme başlamadan önce ürün kapsamını, mimari kararları, Odoo entegrasyonunu, raporlama kurallarını, arayüz standardını, güvenliği, Coolify dağıtımını ve test stratejisini sabitlemek için hazırlanmıştır.
+## Mevcut aşama
 
-## Temel ürün tanımı
+Bu sürüm M1 foundation dilimidir:
 
-- Kullanıcı kitlesi: az sayıda Owner ve Manager.
-- Personel erişimi: yok.
-- Manager: yalnızca yayımlanmış raporları çalıştırır, filtreler, görüntüler ve dışa aktarır.
-- Owner: bağlantıları, şirket eşlemelerini, rapor şablonlarını, veri kalitesini ve kullanıcıları yönetir.
-- Veri kaynağı: Odoo Online Custom plan üzerindeki tek veritabanı ve iki şirket.
-- Dağıtım: GitHub tabanlı CI ve Coolify otomatik deploy.
-- İlk odak: Yurt Dışı Aylık Teklif Performansı.
+- Next.js tabanlı yönetim dashboard kabuğu
+- Owner / Manager yetki modeli
+- Odoo 19 JSON-2 salt okunur istemci
+- merkezi teklif durumu ve KPI hesaplama çekirdeği
+- liveness / readiness / system status endpoint'leri
+- Docker ve Coolify uyumlu çalışma yapısı
+- format, lint, typecheck, unit, integration, build ve browser smoke CI kapıları
 
-## Doküman sırası
+Canlı Odoo API anahtarı repository'ye eklenmez. Yerel veya Coolify runtime environment içinde `ODOO_API_KEY` olarak tanımlanır.
 
-1. `docs/00_PROJECT_CANON.md`
-2. `docs/project-canon.yaml`
-3. `docs/01_PRODUCT_VISION.md`
-4. `docs/02_PRODUCT_REQUIREMENTS.md`
-5. `docs/03_SYSTEM_ARCHITECTURE.md`
-6. `docs/04_ODOO_INTEGRATION.md`
-7. `docs/05_REPORTING_DOMAIN.md`
-8. `docs/06_DATA_MODEL.md`
-9. `docs/07_UI_UX_DESIGN_SYSTEM.md`
-10. `docs/08_SECURITY_AND_ACCESS.md`
-11. `docs/09_DEPLOYMENT_AND_OPERATIONS.md`
-12. `docs/10_TEST_STRATEGY.md`
-13. `docs/11_ROADMAP.md`
-14. `docs/12_DEVELOPMENT_WORKFLOW.md`
-15. `docs/13_MVP_ACCEPTANCE.md`
-16. `docs/14_DECISION_LOG.md`
-17. `docs/development/M0_DISCOVERY_CHECKLIST.md`
+## Gereksinimler
 
-## Kanonik kural
+- Node.js 24 LTS
+- pnpm 11.4+
 
-Kod ile dokümantasyon çelişirse sorun çözülene kadar `00_PROJECT_CANON.md`, `project-canon.yaml` ve onaylanmış karar kayıtları ürün niyetinin kanonik kaynağıdır. Uygulama davranışına ilişkin değişikliklerde ilgili doküman ve testler aynı pull request içinde güncellenmelidir.
+## Yerel başlangıç
+
+```bash
+corepack enable
+corepack prepare pnpm@11.4.0 --activate
+cp .env.example .env.local
+pnpm install
+pnpm dev
+```
+
+Uygulama varsayılan olarak `http://localhost:3000` adresinde açılır.
+
+## Kalite kontrolleri
+
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm unit
+pnpm integration
+pnpm build
+pnpm browser:smoke
+```
+
+## Branch modeli
+
+- `develop` → Coolify staging
+- `main` → Coolify production
+- feature branch → PR → zorunlu CI → merge
+
+Kanonik ürün ve mimari belgeleri `docs/` klasöründedir.

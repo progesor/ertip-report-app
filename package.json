@@ -1,0 +1,34 @@
+{
+  "name": "ertip-report-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.4.0",
+  "engines": {
+    "node": ">=24.18.0",
+    "pnpm": ">=11.4.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @ertip/web dev",
+    "worker:dev": "pnpm --filter @ertip/worker dev",
+    "format": "node tooling/format.mjs --write",
+    "format:check": "node tooling/format.mjs --check",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "unit": "tsx --test packages/auth/src/policies.unit.test.ts packages/odoo-client/src/client.unit.test.ts packages/reporting/src/metrics.unit.test.ts",
+    "integration": "tsx --test tests/integration/odoo-client.integration.test.ts",
+    "build": "pnpm --filter @ertip/web build",
+    "browser:smoke": "playwright test --config apps/web/playwright.config.ts",
+    "ci": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm unit && pnpm integration && pnpm build"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.32.0",
+    "typescript": "5.9.3",
+    "tsx": "^4.20.0",
+    "eslint-config-next": "16.2.11"
+  }
+}
