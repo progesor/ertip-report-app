@@ -1,0 +1,19 @@
+{
+  "name": "@ertip/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@ertip/auth": "workspace:*",
+    "@ertip/config": "workspace:*",
+    "@ertip/reporting": "workspace:*",
+    "next": "16.2.11",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  }
+}

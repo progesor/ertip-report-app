@@ -1,0 +1,51 @@
+export const monthlyTrend = [
+  { month: 'Şub', value: 18 },
+  { month: 'Mar', value: 24 },
+  { month: 'Nis', value: 21 },
+  { month: 'May', value: 30 },
+  { month: 'Haz', value: 27 },
+  { month: 'Tem', value: 34 },
+] as const;
+
+export const salespersonRows = [
+  {
+    name: 'Mehmet Kaya',
+    initials: 'MK',
+    quotations: 12,
+    realized: 5,
+    open: 4,
+    notRealized: 3,
+    conversion: 41.7,
+    movement: 8.4,
+  },
+  {
+    name: 'Ayşe Demir',
+    initials: 'AD',
+    quotations: 9,
+    realized: 4,
+    open: 3,
+    notRealized: 2,
+    conversion: 44.4,
+    movement: 5.1,
+  },
+  {
+    name: 'Can Yılmaz',
+    initials: 'CY',
+    quotations: 8,
+    realized: 2,
+    open: 4,
+    notRealized: 2,
+    conversion: 25,
+    movement: -3.8,
+  },
+  {
+    name: 'Elif Arslan',
+    initials: 'EA',
+    quotations: 5,
+    realized: 1,
+    open: 3,
+    notRealized: 1,
+    conversion: 20,
+    movement: 1.2,
+  },
+] as const;

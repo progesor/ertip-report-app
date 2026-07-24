@@ -1,0 +1,34 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@ertip/auth": [
+        "packages/auth/src/index.ts"
+      ],
+      "@ertip/config": [
+        "packages/config/src/index.ts"
+      ],
+      "@ertip/odoo-client": [
+        "packages/odoo-client/src/index.ts"
+      ],
+      "@ertip/reporting": [
+        "packages/reporting/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "tests/**/*.ts",
+    "*.ts",
+    "*.mjs"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "playwright-report",
+    "test-results"
+  ]
+}
