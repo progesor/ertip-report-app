@@ -3,6 +3,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/*": [
+        "apps/web/*"
+      ],
       "@ertip/auth": [
         "packages/auth/src/index.ts"
       ],
