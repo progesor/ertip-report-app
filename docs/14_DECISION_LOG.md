@@ -65,3 +65,21 @@
 **Karar:** İlk raporda teklif üretim kohortu için başlangıç alanı `sale.order.create_date` olacaktır; `date_order` kohort alanı olarak kullanılmayacaktır. Canlı tenant'ta güvenilir özel teklif tarihi bulunursa kayıt bazlı karşılaştırma ve yeni ADR gerekir.
 
 **Neden:** Odoo 19'da `date_order` taslak/gönderilmiş teklifte oluşturma, onaylı siparişte onay tarihi semantiği taşır. Durum değişimi aynı kaydı başka aya taşıyarak rapor tutarsızlığı üretebilir.
+
+## ADR-012 — PostgreSQL destekli opaque oturum
+
+**Karar:** Kimlik doğrulama oturumları tahmin edilemez bir cookie token ile kurulacak; token'ın kendisi veritabanına yazılmayacak, yalnızca `SESSION_SECRET` ile HMAC özeti saklanacaktır.
+
+**Neden:** Oturum iptali, kullanıcı bazlı toplu çıkış, audit ve düşük kullanıcı sayısında basit operasyon sağlarken çalınmış veritabanından kullanılabilir session token çıkarılmasını önlemek.
+
+## ADR-013 — Yerleşik memory-hard parola hashleme
+
+**Karar:** İlk sürüm parolaları Node.js `crypto.scrypt` ile yüksek maliyet parametreleri ve kullanıcıya özgü rastgele salt kullanarak hashleyecektir.
+
+**Neden:** Modern memory-hard parola korumasını ek native bağımlılık ve container derleme riski oluşturmadan sağlamak. Hash formatı sürümlüdür ve ileride Argon2id'e kontrollü geçişe izin verir.
+
+## ADR-014 — Tek kullanımlık Owner bootstrap
+
+**Karar:** İlk Owner hesabı yalnızca runtime ortamındaki geçici `OWNER_BOOTSTRAP_TOKEN` ile ve kullanıcı tablosu boşken oluşturulabilir. İlk kullanıcıdan sonra endpoint sunucu tarafında kapanır.
+
+**Neden:** Repository'ye başlangıç parolası koymadan production kurulumunu tamamlamak ve anonim kayıt yüzeyi oluşturmamak.

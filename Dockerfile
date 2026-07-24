@@ -10,6 +10,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY apps/worker/package.json apps/worker/package.json
 COPY packages/auth/package.json packages/auth/package.json
 COPY packages/config/package.json packages/config/package.json
+COPY packages/db/package.json packages/db/package.json
 COPY packages/odoo-client/package.json packages/odoo-client/package.json
 COPY packages/reporting/package.json packages/reporting/package.json
 RUN pnpm install --no-frozen-lockfile
