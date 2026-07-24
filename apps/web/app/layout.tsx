@@ -1,0 +1,17 @@
+import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
+
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'Ertip Report App',
+  description: 'Odoo verileri için güvenilir yönetim raporlama merkezi.',
+};
+
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <html lang="tr">
+      <body>{children}</body>
+    </html>
+  );
+}

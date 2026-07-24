@@ -1,0 +1,14 @@
+{
+  "name": "@ertip/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.ts",
+    "start": "node src/index.ts"
+  },
+  "dependencies": {
+    "@ertip/config": "workspace:*",
+    "@ertip/odoo-client": "workspace:*"
+  }
+}
