@@ -42,7 +42,7 @@ export async function getAppDatabase(): Promise<AppDatabase> {
       }),
     );
     state.databaseConnectionString = connectionString;
-    state.migration = undefined;
+    delete state.migration;
   }
 
   state.migration ??= state.database.migrate();
