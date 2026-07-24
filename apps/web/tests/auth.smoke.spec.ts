@@ -40,5 +40,7 @@ test('first Owner can bootstrap, reject invalid login and log back in', async ({
   await page.getByRole('button', { name: 'Giriş Yap' }).click();
 
   await expect(page.getByRole('heading', { name: 'Aylık Teklif Performansı' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Odoo Bağlantısı', exact: true }),
+  ).toBeVisible();
 });
