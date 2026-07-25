@@ -30,7 +30,7 @@ function createDemoRecords(): readonly MonthlyQuotationSourceRecord[] {
     for (let index = 0; index < count; index += 1) {
       const salesperson = salespeople[index % salespeople.length];
       const customer = customers[(index + month) % customers.length];
-      const state = states[(index + month * 2) % states.length];
+      const state = states[(index + month * 2) % states.length] ?? 'draft';
       const day = String((index % 24) + 1).padStart(2, '0');
       const monthValue = String(month).padStart(2, '0');
       const createDate = `2026-${monthValue}-${day}T08:${String(index % 60).padStart(2, '0')}:00.000Z`;
