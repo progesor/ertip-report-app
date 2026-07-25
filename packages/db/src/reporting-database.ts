@@ -110,12 +110,26 @@ export async function queryMonthlyQuotationReport(
          orders.odoo_partner_id,
          customers.display_name AS customer_name,
          orders.amount_total::text,
-         units.source_currency_code AS currency_code
+         COALESCE(
+           NULLIF(upper(currency_meta.value), ''),
+           currency_units.source_currency_code,
+           'XXX'
+         ) AS currency_code
        FROM odoo_sale_orders AS orders
        JOIN business_units AS units ON units.id = orders.business_unit_id
        JOIN odoo_customers AS customers ON customers.odoo_partner_id = orders.odoo_partner_id
        LEFT JOIN odoo_salespeople AS salespeople
          ON salespeople.odoo_user_id = orders.odoo_salesperson_id
+       LEFT JOIN app_meta AS currency_meta
+         ON currency_meta.key = 'odoo_currency_code:' || orders.odoo_currency_id::text
+       LEFT JOIN LATERAL (
+         SELECT candidate.source_currency_code
+         FROM business_units AS candidate
+         WHERE candidate.source_currency_id = orders.odoo_currency_id
+           AND candidate.source_currency_code IS NOT NULL
+         ORDER BY candidate.display_order, candidate.code
+         LIMIT 1
+       ) AS currency_units ON true
        WHERE orders.business_unit_id = $1::uuid
          AND orders.create_date >= $2::date
          AND orders.create_date < $3::date
