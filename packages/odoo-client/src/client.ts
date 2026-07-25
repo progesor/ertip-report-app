@@ -16,6 +16,8 @@ export interface OdooClientConfig {
 }
 
 export interface OdooVersionInfo {
+  readonly version?: string;
+  readonly version_info?: readonly unknown[];
   readonly server_version?: string;
   readonly server_version_info?: readonly unknown[];
   readonly server_serie?: string;
@@ -88,6 +90,42 @@ async function readJsonSafely(response: Response): Promise<unknown> {
   }
 }
 
+function classifyHttpError(status: number): string {
+  if (status === 401) {
+    return 'AUTHENTICATION_FAILED';
+  }
+
+  if (status === 403) {
+    return 'ACCESS_DENIED';
+  }
+
+  if (status === 404) {
+    return 'ENDPOINT_NOT_FOUND';
+  }
+
+  if (status === 422) {
+    return 'REQUEST_REJECTED';
+  }
+
+  if (status === 429) {
+    return 'RATE_LIMITED';
+  }
+
+  if (status >= 500) {
+    return 'ODOO_UNAVAILABLE';
+  }
+
+  return 'HTTP_ERROR';
+}
+
+function classifyNetworkError(error: unknown): string {
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+    return 'TIMEOUT';
+  }
+
+  return 'NETWORK_ERROR';
+}
+
 export function createOdooClient(
   config: OdooClientConfig,
   dependencies: { readonly fetch?: typeof fetch } = {},
@@ -114,7 +152,7 @@ export function createOdooClient(
       });
     } catch (error) {
       throw new OdooClientError('Odoo request failed before receiving a response.', {
-        code: 'NETWORK_ERROR',
+        code: classifyNetworkError(error),
         cause: error,
       });
     }
@@ -124,7 +162,7 @@ export function createOdooClient(
     if (!response.ok) {
       throw new OdooClientError(`Odoo request failed with HTTP ${response.status}.`, {
         status: response.status,
-        code: 'HTTP_ERROR',
+        code: classifyHttpError(response.status),
       });
     }
 
@@ -133,11 +171,12 @@ export function createOdooClient(
 
   return {
     async getVersionInfo() {
-      const url = new URL('/web/webclient/version_info', baseUrl);
+      const url = new URL('/web/version', baseUrl);
       const payload = await execute(url, {
         method: 'GET',
         headers: {
           Accept: 'application/json',
+          'User-Agent': 'ErtipReportApp/0.2',
         },
       });
 
@@ -162,6 +201,7 @@ export function createOdooClient(
           Accept: 'application/json',
           Authorization: `bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
+          'User-Agent': 'ErtipReportApp/0.2',
           'X-Odoo-Database': config.database,
         },
         body: JSON.stringify(params),
