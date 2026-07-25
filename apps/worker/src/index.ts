@@ -15,6 +15,7 @@ import {
 const runtime = readRuntimeConfig();
 const heartbeatMs = 30_000;
 const pollMs = 5_000;
+const startupRetryMaximumMs = 30_000;
 const databasePool = runtime.database.connectionString
   ? createDatabasePool({
       connectionString: runtime.database.connectionString,
@@ -25,6 +26,8 @@ const databasePool = runtime.database.connectionString
 const syncDatabase = databasePool ? new SyncDatabase(databasePool) : null;
 let processing = false;
 let stopping = false;
+let poller: ReturnType<typeof setInterval> | null = null;
+let heartbeat: ReturnType<typeof setInterval> | null = null;
 
 function safeWorkerState() {
   return {
@@ -62,6 +65,19 @@ function createSyncStore(database: SyncDatabase): SaleOrderSyncStore {
   };
 }
 
+function wait(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+function getSafeErrorCode(error: unknown): string | null {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return null;
+  }
+
+  const code = (error as { readonly code?: unknown }).code;
+  return typeof code === 'string' && /^[A-Z0-9_]+$/i.test(code) ? code : null;
+}
+
 async function initializeWorker(): Promise<void> {
   if (!syncDatabase || !databasePool) {
     console.warn(
@@ -70,11 +86,43 @@ async function initializeWorker(): Promise<void> {
     return;
   }
 
-  await syncDatabase.migrate();
-  const recoveredRuns = await recoverInterruptedSyncRuns(databasePool);
+  let attempt = 0;
 
-  if (recoveredRuns > 0) {
-    console.warn(JSON.stringify({ event: 'worker.sync.recovered', recoveredRuns }));
+  while (!stopping) {
+    try {
+      await syncDatabase.migrate();
+      const recoveredRuns = await recoverInterruptedSyncRuns(databasePool);
+
+      if (recoveredRuns > 0) {
+        console.warn(JSON.stringify({ event: 'worker.sync.recovered', recoveredRuns }));
+      }
+
+      console.info(
+        JSON.stringify({
+          event: 'worker.database.ready',
+          attempts: attempt + 1,
+          ...safeWorkerState(),
+        }),
+      );
+      return;
+    } catch (error) {
+      attempt += 1;
+      const retryInMs = Math.min(
+        startupRetryMaximumMs,
+        1_000 * 2 ** Math.min(attempt - 1, 5),
+      );
+      console.error(
+        JSON.stringify({
+          event: 'worker.database.retry',
+          attempt,
+          retryInMs,
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          errorCode: getSafeErrorCode(error),
+          ...safeWorkerState(),
+        }),
+      );
+      await wait(retryInMs);
+    }
   }
 }
 
@@ -157,6 +205,7 @@ async function processNextSyncRun(): Promise<void> {
       JSON.stringify({
         event: 'worker.poll.failed',
         errorName: error instanceof Error ? error.name : 'UnknownError',
+        errorCode: getSafeErrorCode(error),
       }),
     );
   } finally {
@@ -164,21 +213,20 @@ async function processNextSyncRun(): Promise<void> {
   }
 }
 
-await initializeWorker();
-console.info(JSON.stringify({ event: 'worker.started', ...safeWorkerState() }));
-void processNextSyncRun();
-
-const poller = setInterval(() => {
-  void processNextSyncRun();
-}, pollMs);
-const heartbeat = setInterval(() => {
-  console.info(JSON.stringify({ event: 'worker.heartbeat', ...safeWorkerState() }));
-}, heartbeatMs);
-
 async function shutdown(signal: string): Promise<void> {
+  if (stopping) {
+    return;
+  }
+
   stopping = true;
-  clearInterval(poller);
-  clearInterval(heartbeat);
+
+  if (poller) {
+    clearInterval(poller);
+  }
+
+  if (heartbeat) {
+    clearInterval(heartbeat);
+  }
 
   if (syncDatabase) {
     await syncDatabase.close();
@@ -194,3 +242,15 @@ process.once('SIGINT', () => {
 process.once('SIGTERM', () => {
   void shutdown('SIGTERM');
 });
+
+console.info(JSON.stringify({ event: 'worker.booting', ...safeWorkerState() }));
+await initializeWorker();
+console.info(JSON.stringify({ event: 'worker.started', ...safeWorkerState() }));
+void processNextSyncRun();
+
+poller = setInterval(() => {
+  void processNextSyncRun();
+}, pollMs);
+heartbeat = setInterval(() => {
+  console.info(JSON.stringify({ event: 'worker.heartbeat', ...safeWorkerState() }));
+}, heartbeatMs);
