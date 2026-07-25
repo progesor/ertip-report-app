@@ -7,7 +7,7 @@
 - Odoo tenant: Ertip Medical Odoo Online
 - Detected version: `19.0+e`
 - Discovery time: 25 July 2026, 18:29 Europe/Istanbul
-- Discovery duration: 4,034 ms
+- Initial discovery duration: 4,034 ms
 - Access policy: read-only JSON-2 methods only
 
 No API key, authorization header, raw customer content, or full login value is retained in this document.
@@ -39,7 +39,7 @@ The company name and currency are verification aids only. Runtime filtering and 
 - The discovery screen lists visible user candidates; it does not prove which record owns the runtime API key.
 - The API-key principal must be confirmed operationally before its Odoo user ID is persisted as integration metadata.
 
-The aggregate `sale.order` count is `6,875`. The first discovery run did not retain per-company `sale.order` counts, so row-level sales coverage for both companies remains an explicit M2 verification item.
+The aggregate `sale.order` count is `6,875`. Company-specific row counts are collected by the Owner-only coverage diagnostics endpoint introduced after the first live discovery.
 
 ## 4. Model and field inventory
 
@@ -91,20 +91,32 @@ A quotation must not move to another production month merely because it later be
 
 ## 6. State and data-quality baseline
 
-First-run values:
+The resilient re-run completed all four source-state counts:
 
-- `draft` / Quotation: 1,088
-- `cancel` / Cancelled: 69
-- `sent` / Quotation Sent: incomplete read
-- `sale` / Sales Order: incomplete read
+| Source state | Label | Record count |
+| --- | --- | ---: |
+| `draft` | Quotation | 1,088 |
+| `sent` | Quotation Sent | 1 |
+| `sale` | Sales Order | 5,717 |
+| `cancel` | Cancelled | 69 |
+| **Total** |  | **6,875** |
+
+Reconciliation:
+
+```text
+1,088 + 1 + 5,717 + 69 = 6,875
+```
+
+The source-state distribution therefore fully reconciles to the aggregate `sale.order` count. The earlier `sent` and `sale` incomplete reads were transient upstream failures, not zero values. The bounded sequential retry closed this issue without changing the read-only policy.
+
+Critical missing-value baseline:
+
 - missing `user_id`: 2
 - missing `partner_id`: 0
 - missing `company_id`: 0
 - missing `currency_id`: 0
 - missing `create_date`: 0
 - missing `date_order`: 0
-
-The incomplete `sent` and `sale` counts must not be interpreted as zero. The discovery request issued multiple independent diagnostic reads concurrently; two state queries returned a transient upstream failure while other reads succeeded. M2 adds a bounded, sequential retry only for incomplete state counts.
 
 The two records without `user_id` require a read-only record-level inspection before salesperson aggregation rules are finalized. They must initially normalize to an explicit `unassigned` salesperson bucket rather than being silently discarded.
 
@@ -120,11 +132,29 @@ Source states are verified, but the reporting business status remains versioned 
 
 The exact expiration calculation and treatment of missing `validity_date` must be validated on live records before M3.
 
-## 8. Next M2 verification slice
+## 8. Owner-only coverage diagnostics
 
-1. Re-run discovery after the resilient state-count patch and record all four state counts.
-2. Count visible `sale.order` rows separately for company IDs `1` and `25`.
-3. Confirm the Odoo user record that owns the runtime API key.
-4. Inspect the two `sale.order` records with missing `user_id` using safe record IDs and non-personal fields.
+The next diagnostics surface is:
+
+```text
+GET /api/owner/odoo/coverage
+```
+
+It requires the `admin:data-quality` permission and returns only safe reporting metadata:
+
+- global total and state counts,
+- company-specific total and state counts,
+- reconciliation status for company IDs `1` and `25`,
+- missing-salesperson count by company,
+- up to 20 unassigned record IDs with company, state, `create_date`, and `date_order` only.
+
+It does not read or return customer names, quotation names, monetary values, order lines, full logins, or API secrets.
+
+## 9. Next M2 verification slice
+
+1. Run `GET /api/owner/odoo/coverage` in the authenticated Owner session and record company-specific totals.
+2. Confirm that both company distributions reconcile to their own total and together reconcile to `6,875`.
+3. Review the safe metadata for the two records with missing `user_id` and finalize the `unassigned` rule.
+4. Confirm the Odoo user record that owns the runtime API key.
 5. Sample expired and non-expired `draft`/`sent` records to finalize status normalization.
-6. Only then persist company mappings and begin the idempotent local sync schema.
+6. Persist company mappings and begin the idempotent local sync schema only after these checks close.
