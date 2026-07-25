@@ -156,8 +156,8 @@ function createClient(): OdooClient {
 test('syncs both companies with a stable cursor and preserves unassigned salesperson', async () => {
   const run = createRun();
   const batches: SaleOrderSyncBatch[] = [];
+  const finalizedCountResults: SaleOrderSyncCounts[] = [];
   let sourceCount = 0;
-  let finalizedCounts: SaleOrderSyncCounts | null = null;
   const store: SaleOrderSyncStore = {
     async getBusinessUnitMappings() {
       return [
@@ -186,7 +186,7 @@ test('syncs both companies with a stable cursor and preserves unassigned salespe
       batches.push(batch);
     },
     async finalizeSaleOrderSync(_runId, counts) {
-      finalizedCounts = counts;
+      finalizedCountResults.push(counts);
       return {
         run: {
           ...run,
@@ -204,7 +204,9 @@ test('syncs both companies with a stable cursor and preserves unassigned salespe
   };
 
   const result = await runSaleOrderSync({ client: createClient(), store, run });
+  const finalizedCounts = finalizedCountResults[0];
 
+  assert.ok(finalizedCounts);
   assert.equal(result.status, 'succeeded');
   assert.equal(sourceCount, 2);
   assert.equal(batches.length, 1);
@@ -220,7 +222,7 @@ test('syncs both companies with a stable cursor and preserves unassigned salespe
     batches[0]?.orders.find(({ odooId }) => odooId === 6460)?.businessUnitId,
     '22222222-2222-4222-8222-222222222222',
   );
-  assert.equal(finalizedCounts?.stateCounts.draft, 1);
-  assert.equal(finalizedCounts?.stateCounts.sale, 1);
-  assert.equal(finalizedCounts?.missingSalespersonCount, 1);
+  assert.equal(finalizedCounts.stateCounts.draft, 1);
+  assert.equal(finalizedCounts.stateCounts.sale, 1);
+  assert.equal(finalizedCounts.missingSalespersonCount, 1);
 });
