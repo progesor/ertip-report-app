@@ -12,7 +12,7 @@ function firstHeaderValue(value: string | null): string | null {
   return value?.split(',')[0]?.trim() || null;
 }
 
-function getExpectedOrigin(request: Request): string {
+function getProxyExpectedOrigin(request: Request): string {
   const requestUrl = new URL(request.url);
   const forwardedHost = firstHeaderValue(request.headers.get('x-forwarded-host'));
   const host = forwardedHost ?? firstHeaderValue(request.headers.get('host')) ?? requestUrl.host;
@@ -22,10 +22,27 @@ function getExpectedOrigin(request: Request): string {
   return `${protocol}://${host}`;
 }
 
+function getExpectedOrigin(request: Request): string {
+  const configuredOrigin = readRuntimeConfig().publicOrigin;
+  return configuredOrigin ?? getProxyExpectedOrigin(request);
+}
+
 export function assertSameOrigin(request: Request): void {
   const origin = request.headers.get('origin');
 
-  if (!origin || new URL(origin).origin !== getExpectedOrigin(request)) {
+  if (!origin) {
+    throw new RequestSecurityError('Missing Origin header.');
+  }
+
+  let normalizedOrigin: string;
+
+  try {
+    normalizedOrigin = new URL(origin).origin;
+  } catch {
+    throw new RequestSecurityError('Invalid Origin header.');
+  }
+
+  if (normalizedOrigin !== getExpectedOrigin(request)) {
     throw new RequestSecurityError('Cross-origin state change rejected.');
   }
 }
