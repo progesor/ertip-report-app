@@ -18,7 +18,9 @@ test('monthly quotation report renders filters, KPI, charts, views and drill-dow
 
   await expect(page.getByRole('heading', { name: 'Aylık Teklif Performansı' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Raporu Çalıştır' })).toBeVisible();
-  await expect(page.getByText('Dönüşüm Oranı')).toBeVisible();
+  await expect(
+    page.locator('.report-kpi-grid').getByText('Dönüşüm Oranı', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Teklif Üretimi' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Personel Karşılaştırması' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Müşteri Teklif Özeti' })).toBeVisible();
