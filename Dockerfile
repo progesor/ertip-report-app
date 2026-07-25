@@ -13,6 +13,7 @@ COPY packages/config/package.json packages/config/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/odoo-client/package.json packages/odoo-client/package.json
 COPY packages/reporting/package.json packages/reporting/package.json
+COPY packages/sync/package.json packages/sync/package.json
 RUN pnpm install --no-frozen-lockfile
 
 FROM dependencies AS builder
