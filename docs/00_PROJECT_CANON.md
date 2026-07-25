@@ -8,6 +8,7 @@
 - Dağıtım hedefi: Şirketin Coolify sunucusu
 - Kaynak yönetimi: Özel GitHub deposu
 - Birincil dil: Türkçe
+- Canlı kaynak sürümü: **Odoo Online 19.0+e**
 
 ## 2. Problem
 
@@ -46,6 +47,7 @@ Owner kullanıcısı:
 8. Raporlama için yerel PostgreSQL veri katmanı kullanılır.
 9. İlk çalışır sürümden itibaren staging ortamı bulunur.
 10. `develop` staging’e, `main` production’a otomatik dağıtılır.
+11. Odoo entegrasyonu ilk sürümde kesinlikle salt okunurdur.
 
 ## 5. Kullanıcı rolleri
 
@@ -61,12 +63,12 @@ Yayımlanmış raporlara ve izin verilen iş birimlerine erişim.
 
 ## 6. Organizasyon modeli
 
-Odoo’daki iki şirket, uygulamada iş birimi olarak sunulabilir:
+Odoo’daki iki şirket uygulamada iş birimi olarak sunulur. 25 Temmuz 2026 canlı tenant keşfiyle kanonik eşleme doğrulanmıştır:
 
-- Yurt Dışı
-- Yurt İçi
+- **Yurt Dışı** → `res.company.id = 1`, kaynak para birimi USD (`res.currency.id = 1`)
+- **Yurt İçi** → `res.company.id = 25`, kaynak para birimi TRY (`res.currency.id = 31`)
 
-Uygulama, görünen iş birimi adlarını Odoo `res.company` kayıtlarıyla sabit kimlik üzerinden eşler. Şirket adı son ekleri veya metinsel tahminler güvenilir ana kural olarak kullanılmaz.
+Uygulama, görünen iş birimi adlarını Odoo `res.company` kayıtlarıyla yalnızca sabit kimlik üzerinden eşler. Şirket adları neredeyse aynı olduğundan ad, noktalama, son ek veya para birimi güvenilir runtime eşleme kuralı değildir.
 
 ## 7. İlk rapor
 
@@ -80,6 +82,8 @@ Zorunlu görünümler:
 - Müşteri özeti
 - Teklif detay listesi
 - Tüm personel yazdırma/PDF raporu
+
+Kanonik teklif kohortu `sale.order.create_date` alanıdır. `sale.order.date_order`, canlı kayıtlarda onay sonrası değişebildiği ve ay sınırını aşabildiği için teklif üretim ayını belirlemez.
 
 ## 8. Arayüz yönü
 

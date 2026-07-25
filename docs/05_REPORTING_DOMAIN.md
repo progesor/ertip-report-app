@@ -54,26 +54,53 @@ Müşteri başına teklif sayısı, sonuç dağılımı, son teklif tarihi ve de
 
 ## 3. Teklif kohortu
 
-“Bu ay kaç teklif yapıldı?” sorusunun varsayılan yanıtı teklifin ilk oluşturulduğu döneme göre hesaplanır. Odoo 19 standart modelinde bunun ilk kanonik alan adayı `sale.order.create_date` değeridir. Onaylandığı dönem ayrı bir tarih ekseni olarak raporlanır.
+“Bu ay kaç teklif yapıldı?” sorusunun kanonik yanıtı teklifin ilk oluşturulduğu döneme göre hesaplanır. Canlı Odoo 19.0+e tenant doğrulaması sonucunda tarih ekseni kesin olarak `sale.order.create_date` seçilmiştir.
 
-`sale.order.date_order` teklif üretim kohortu için kullanılmaz; bu alan taslak/gönderilmiş kayıtta oluşturma tarihini, onaylı kayıtta onay tarihini temsil edebildiği için kayıt durum değiştirince ay değiştirebilir. Varsa özel Studio teklif tarihi alanı M0'da `create_date` ile kayıt bazında karşılaştırılır.
+`sale.order.date_order` teklif üretim kohortu için kullanılmaz. 100 onaylı kayıt örneğinin 55 tanesinde `date_order`, `create_date` sonrasına taşınmış; 4 kayıt takvim ayı sınırını geçmiş ve maksimum 147,86 gün fark gözlenmiştir. Bu alan onaylanmış kayıtlarda sipariş/onay dönemi için ayrı bir tarih ekseni olarak kullanılabilir.
 
-Bu ayrım sayesinde geçmişte oluşturulan bir teklif daha sonra sipariş olduğunda teklif üretim performansı başka aya taşınmaz. Kesin alan seçimi canlı mutabakat ve metrik sözlüğü onayıyla sürümlenir.
+```text
+Teklif üretim dönemi = month(sale.order.create_date)
+Sipariş/onay dönemi = month(sale.order.date_order), yalnızca onaylı kayıtlar
+```
 
-## 4. Durumlar
+Bu ayrım sayesinde geçmişte oluşturulan bir teklif daha sonra sipariş olduğunda teklif üretim performansı başka aya taşınmaz.
 
-Önerilen iş tanımı:
+Canlı `sale.order` modelinde Studio veya başka `x_` özel alan bulunmadığı doğrulanmıştır. Tenant modeli ileride değişirse alan envanteri yeniden çalıştırılır ve metrik sürümü artırılır.
 
-- **Gerçekleşti:** siparişe dönüşmüş kayıt.
-- **Açık:** karar verilmemiş ve geçerliliğini koruyan kayıt.
-- **İptal:** kaynakta iptal edilmiş kayıt.
-- **Süresi doldu:** geçerlilik tarihi geçmiş, siparişe dönüşmemiş kayıt.
-- **Gerçekleşmedi:** rapor sunumunda iptal ve süresi dolmuş kayıtların birleşimi; detayda alt durum korunur.
+## 4. İş birimi kapsamı
+
+İş birimi eşlemesi yalnızca sabit `res.company.id` üzerinden yapılır:
+
+- **Yurt Dışı:** `company_id = 1`, kaynak para birimi USD (`currency_id = 1`)
+- **Yurt İçi:** `company_id = 25`, kaynak para birimi TRY (`currency_id = 31`)
+
+İki şirketin görünen adları yalnızca noktalama farkıyla ayrıldığı için şirket adı, son ek veya para birimi runtime eşleme anahtarı olamaz.
+
+İlk raporun varsayılan kapsamı Yurt Dışı, yani `sale.order.company_id = 1` olacaktır. Manager erişim kapsamı ayrıca uygulama veritabanındaki iş birimi izinleriyle sunucu tarafında sınırlandırılır.
+
+## 5. Durumlar
+
+Canlı kaynak durum seçenekleri:
+
+- `draft` — Quotation
+- `sent` — Quotation Sent
+- `sale` — Sales Order
+- `cancel` — Cancelled
+
+Kanonik iş tanımı:
+
+- **Gerçekleşti:** `state = sale`.
+- **Açık:** `state in (draft, sent)` ve teklif henüz süresi dolmamış.
+- **İptal:** `state = cancel`.
+- **Süresi doldu:** `state in (draft, sent)` ve geçerlilik tarihi geçmiş.
+- **Gerçekleşmedi:** rapor sunumunda İptal + Süresi doldu; detayda alt durum korunur.
 - **Belirsiz:** eksik veya tanımsız veri.
 
-Açık teklifler gerçekleşmedi sayılmaz.
+Açık teklifler gerçekleşmedi sayılmaz. `validity_date` boş kayıtların nasıl sınıflandırılacağı canlı örneklerle M2 içinde ayrıca doğrulanacaktır.
 
-## 5. Para birimi
+İlk canlı veri kalite taramasında iki `sale.order` kaydında `user_id` boş bulunmuştur. Bu kayıtlar sessizce dışlanmaz; ilk normalizasyonda açık bir **Atanmamış** personel kovasına alınır ve kayıt bazlı inceleme tamamlanır.
+
+## 6. Para birimi
 
 - Gerçek `currency_id` her zaman saklanır.
 - İlk yurt dışı raporunda ana odak adet metrikleridir.
@@ -81,7 +108,7 @@ Açık teklifler gerçekleşmedi sayılmaz.
 - Farklı para birimleri toplamı, kur dönüşüm kuralı olmadan tek rakamda birleştirilmez.
 - İş ihtiyacı gereği USD varsayımı kullanılan özel görünüm varsa bu durum raporda görünür biçimde belirtilir.
 
-## 6. Rapor metadata’sı
+## 7. Rapor metadata’sı
 
 Her rapor şu bilgileri taşımalıdır:
 
@@ -94,7 +121,7 @@ Her rapor şu bilgileri taşımalıdır:
 - metrik tanımı sürümü,
 - canlı veya snapshot sonucu.
 
-## 7. Snapshot
+## 8. Snapshot
 
 Yönetim toplantısı gibi durumlarda rapor sonucu dondurulabilir. Snapshot:
 
@@ -106,7 +133,7 @@ Yönetim toplantısı gibi durumlarda rapor sonucu dondurulabilir. Snapshot:
 
 saklar. İlk MVP’de zorunlu değildir; veri modeli buna hazır olmalıdır.
 
-## 8. İleride eklenecek raporlar
+## 9. İleride eklenecek raporlar
 
 - Personel Performansı
 - Müşteri Teklif Geçmişi

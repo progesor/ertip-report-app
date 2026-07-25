@@ -8,12 +8,17 @@ project:
 source_system:
   product: Odoo Online
   plan: Custom
+  detected_version: 19.0+e
   database_count: 1
   company_count: 2
   access_mode: read_only_external_api
   preferred_api:
     odoo_19_plus: json2
     older_versions: version_appropriate_rpc_adapter
+  verified_model_counts:
+    sale_order: 6875
+  verified_custom_fields:
+    sale_order: 0
 
 users:
   expected_scale: small
@@ -36,6 +41,33 @@ organization:
   initial_units:
     - Yurt Dışı
     - Yurt İçi
+  verified_mapping:
+    yurt_disi:
+      odoo_company_id: 1
+      source_currency_code: USD
+      source_currency_id: 1
+    yurt_ici:
+      odoo_company_id: 25
+      source_currency_code: TRY
+      source_currency_id: 31
+  mapping_rule: stable_company_id_only
+
+reporting_semantics:
+  quotation_cohort_field: sale.order.create_date
+  confirmation_period_field: sale.order.date_order
+  source_states:
+    open:
+      - draft
+      - sent
+    realized:
+      - sale
+    cancelled:
+      - cancel
+  quotation_date_live_evidence:
+    confirmed_sample_count: 100
+    date_order_after_create_count: 55
+    cross_month_count: 4
+    maximum_observed_lag_days: 147.86
 
 product_scope:
   first_report: international_monthly_quotation_performance
