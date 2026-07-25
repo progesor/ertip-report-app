@@ -82,10 +82,12 @@ async function recordFailure(options: {
 export async function POST(request: Request) {
   const startedAt = performance.now();
   let stage: OdooTestStage = 'version';
+  let checkedBy: string | null = null;
 
   try {
     assertSameOrigin(request);
     const user = await requirePermission('admin:connections');
+    checkedBy = user.id;
     const runtimeConfig = readRuntimeConfig();
 
     if (
@@ -154,18 +156,19 @@ export async function POST(request: Request) {
     }
 
     if (error instanceof OdooClientError) {
-      const user = await requirePermission('admin:connections');
       const durationMs = Math.max(0, Math.round(performance.now() - startedAt));
       const safeErrorCode = createSafeErrorCode(stage, error);
       const upstreamStatus = error.status ?? null;
 
-      await recordFailure({
-        checkedBy: user.id,
-        safeErrorCode,
-        durationMs,
-        stage,
-        upstreamStatus,
-      });
+      if (checkedBy) {
+        await recordFailure({
+          checkedBy,
+          safeErrorCode,
+          durationMs,
+          stage,
+          upstreamStatus,
+        });
+      }
 
       console.error('[odoo] connection test failed', {
         safeErrorCode,
