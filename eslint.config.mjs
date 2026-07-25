@@ -12,6 +12,12 @@ export default defineConfig([
       },
     },
   },
+  {
+    files: ['apps/web/components/monthly-quotation-report-view.tsx'],
+    rules: {
+      '@next/next/no-html-link-for-pages': 'off',
+    },
+  },
   globalIgnores([
     '**/.next/**',
     '**/dist/**',

@@ -1,0 +1,5 @@
+.nav-item,
+.actions .button,
+.panel-title .button {
+  text-decoration: none;
+}
