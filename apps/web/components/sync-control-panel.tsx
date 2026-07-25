@@ -98,11 +98,17 @@ export function SyncControlPanel({
   }, []);
 
   useEffect(() => {
-    void loadRuns();
+    const initialRefresh = window.setTimeout(() => {
+      void loadRuns();
+    }, 0);
     const interval = window.setInterval(() => {
       void loadRuns();
     }, 5_000);
-    return () => window.clearInterval(interval);
+
+    return () => {
+      window.clearTimeout(initialRefresh);
+      window.clearInterval(interval);
+    };
   }, [loadRuns]);
 
   async function queueSync(scope: 'all' | 'period') {
