@@ -30,6 +30,7 @@ export default defineConfig({
     env: {
       APP_ENV: 'test',
       APP_DEMO_MODE: 'false',
+      APP_PUBLIC_URL: 'http://127.0.0.1:3001',
       DATABASE_URL: databaseUrl,
       DATABASE_SSL: 'false',
       SESSION_SECRET: 'browser-auth-session-secret-value-2026',
