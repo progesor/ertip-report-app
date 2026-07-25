@@ -20,6 +20,9 @@
       ],
       "@ertip/reporting": [
         "packages/reporting/src/index.ts"
+      ],
+      "@ertip/sync": [
+        "packages/sync/src/index.ts"
       ]
     }
   },

@@ -17,6 +17,8 @@ Hedef: gerçek Odoo veri modelini ve rapor kurallarını doğrulamak.
 
 Çıkış kriteri: İlk raporun her metriği örnek kayıtlar üzerinden açıklanabilir.
 
+Canlı tenant keşfi ve şirket kapsamı 25 Temmuz 2026 tarihinde tamamlandı. Açık keşif maddeleri yalnızca entegrasyon API-key kullanıcısının operasyonel kimliği ve `validity_date` durum örneklemidir.
+
 ## M1 — Foundation and Live Staging
 
 Hedef: GitHub’dan Coolify staging’e otomatik dağıtılan güvenli iskelet.
@@ -49,7 +51,26 @@ Hedef: salt okunur, izlenebilir veri senkronizasyonu.
 - sync geçmişi
 - veri kalite temel ekranı
 
+Toplu sync-core dilimi:
+
+- şirket `1` / `25` eşlemeleri PostgreSQL’e sabitlendi,
+- schema version `2` oluşturuldu,
+- PostgreSQL tabanlı durable sync kuyruğu eklendi,
+- ayrı worker ile source-ID cursor sayfalama uygulandı,
+- customer, salesperson ve `sale.order` upsert’i eklendi,
+- `user_id = false` kayıtları **Atanmamış** olarak korundu,
+- yalnızca başarılı tam tarama sonrası stale-row temizliği eklendi,
+- şirket/durum/missing-salesperson mutabakatı eklendi,
+- Owner queue ve sync-history yüzeyi eklendi,
+- web ve worker production image’ları ayrıldı.
+
 Çıkış kriteri: Seçilen dönem verisi tekrar çalıştırıldığında idempotent ve sayısal olarak doğrulanmış biçimde yerel veritabanına alınır.
+
+Kalan M2 production kanıtı:
+
+1. web ve worker’ın aynı commit ile deploy edilmesi,
+2. ilk tam sync’in `6.875` kayıtla mutabık kapanması,
+3. ikinci tam sync’in aynı sayılarla duplication olmadan kapanması.
 
 ## M3 — First Report
 

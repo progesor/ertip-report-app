@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { can, type AppRole } from '@ertip/auth';
 
 import { monthlyTrend, salespersonRows } from '@/lib/demo-data';
+import { SyncControlPanel } from '@/components/sync-control-panel';
 import { TenantDiscoveryPanel } from '@/components/tenant-discovery-panel';
 
 const workspaceItems = ['Genel Bakış', 'Raporlar', 'Kaydedilmiş Çıktılar'] as const;
@@ -243,6 +244,10 @@ export function DashboardShell({
 
         {canManage && !demoMode ? (
           <TenantDiscoveryPanel odooConfigured={odooConfigured} />
+        ) : null}
+
+        {canManage && !demoMode ? (
+          <SyncControlPanel odooConfigured={odooConfigured} />
         ) : null}
 
         <section className="metric-grid" aria-label="Ana performans göstergeleri">
