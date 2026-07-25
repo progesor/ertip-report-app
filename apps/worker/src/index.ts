@@ -183,9 +183,9 @@ async function processNextSyncRun(): Promise<void> {
         }),
       );
     } catch (error) {
-      const safeErrorCode =
-        error instanceof SaleOrderSyncError ? error.code : 'UNEXPECTED_SYNC_FAILURE';
-      const errorStage = error instanceof SaleOrderSyncError ? error.stage : 'worker';
+      const syncError = error instanceof SaleOrderSyncError ? error : null;
+      const safeErrorCode = syncError?.code ?? 'UNEXPECTED_SYNC_FAILURE';
+      const errorStage = syncError?.stage ?? 'worker';
       await syncDatabase.failSaleOrderSync({
         runId: run.id,
         safeErrorCode,
@@ -197,6 +197,9 @@ async function processNextSyncRun(): Promise<void> {
           runId: run.id,
           safeErrorCode,
           errorStage,
+          sourceRecordId: syncError?.sourceRecordId ?? null,
+          sourceField: syncError?.sourceField ?? null,
+          sourceValueType: syncError?.sourceValueType ?? null,
         }),
       );
     }
