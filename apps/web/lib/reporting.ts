@@ -1,7 +1,5 @@
-import type { Pool } from 'pg';
-
-import { createDatabasePool, queryMonthlyQuotationReport } from '@ertip/db';
 import { readRuntimeConfig } from '@ertip/config';
+import { createDatabasePool, queryMonthlyQuotationReport } from '@ertip/db';
 import type {
   MonthlyQuotationReportFilters,
   MonthlyQuotationReportResult,
@@ -9,8 +7,10 @@ import type {
 
 import { getAppDatabase } from './database';
 
+type ReportingPool = ReturnType<typeof createDatabasePool>;
+
 interface ReportingGlobalState {
-  pool?: Pool;
+  pool?: ReportingPool;
   connectionString?: string;
 }
 
@@ -23,7 +23,7 @@ function getGlobalState(): ReportingGlobalState {
   return globalState.__ertipReportingState;
 }
 
-function getReportingPool(): Pool {
+function getReportingPool(): ReportingPool {
   const runtime = readRuntimeConfig();
   const connectionString = runtime.database.connectionString;
 
