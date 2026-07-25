@@ -162,6 +162,33 @@ jobs:
       - run: pnpm build
       - run: docker build --tag ertip-report-app:ci .
       - run: docker build --file Dockerfile.worker --tag ertip-report-worker:ci .
+      - name: Smoke-test worker production image
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker rm -f ertip-worker-start-smoke ertip-worker-retry-smoke >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name ertip-worker-start-smoke \
+            -e APP_ENV=test \
+            -e APP_DEMO_MODE=true \
+            ertip-report-worker:ci
+          sleep 3
+          test "$(docker inspect --format '{{.State.Running}}' ertip-worker-start-smoke)" = "true"
+          docker logs ertip-worker-start-smoke 2>&1 | tee worker-start-smoke.log
+          grep -q '"event":"worker.started"' worker-start-smoke.log
+
+          docker run --detach --name ertip-worker-retry-smoke \
+            -e APP_ENV=test \
+            -e APP_DEMO_MODE=true \
+            -e DATABASE_URL=postgresql://ertip:ertip@127.0.0.1:1/unreachable \
+            -e DATABASE_SSL=false \
+            ertip-report-worker:ci
+          sleep 4
+          test "$(docker inspect --format '{{.State.Running}}' ertip-worker-retry-smoke)" = "true"
+          docker logs ertip-worker-retry-smoke 2>&1 | tee worker-retry-smoke.log
+          grep -q '"event":"worker.database.retry"' worker-retry-smoke.log
 
   browser-smoke:
     name: browser_smoke
