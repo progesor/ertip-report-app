@@ -12,6 +12,7 @@
     "@ertip/db": "workspace:*",
     "@ertip/odoo-client": "workspace:*",
     "@ertip/sync": "workspace:*",
+    "pg": "8.22.0",
     "tsx": "4.20.0"
   }
 }
