@@ -4,6 +4,7 @@ export interface RuntimeConfig {
   readonly appEnvironment: AppEnvironment;
   readonly demoMode: boolean;
   readonly appName: string;
+  readonly publicOrigin?: string;
   readonly database: {
     readonly connectionString?: string;
     readonly ssl: boolean;
@@ -41,6 +42,26 @@ function readEnvironment(value: string | undefined): AppEnvironment {
   return 'development';
 }
 
+function readPublicOrigin(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return undefined;
+    }
+
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
 function readTimeout(value: string | undefined): number {
   const parsed = Number(value ?? '15000');
   return Number.isFinite(parsed) && parsed >= 1000 && parsed <= 120000 ? parsed : 15000;
@@ -54,6 +75,7 @@ function readSessionTtlHours(value: string | undefined): number {
 export function readRuntimeConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): RuntimeConfig {
+  const publicOrigin = readPublicOrigin(env.APP_PUBLIC_URL);
   const databaseConnectionString = env.DATABASE_URL?.trim() || undefined;
   const sessionSecret = env.SESSION_SECRET?.trim() || undefined;
   const ownerBootstrapToken = env.OWNER_BOOTSTRAP_TOKEN?.trim() || undefined;
@@ -65,6 +87,7 @@ export function readRuntimeConfig(
     appEnvironment: readEnvironment(env.APP_ENV),
     demoMode: readBoolean(env.APP_DEMO_MODE, false),
     appName: env.NEXT_PUBLIC_APP_NAME?.trim() || 'Ertip Report App',
+    ...(publicOrigin === undefined ? {} : { publicOrigin }),
     database: {
       ...(databaseConnectionString === undefined
         ? {}
@@ -94,6 +117,7 @@ export function getSafeRuntimeStatus(config: RuntimeConfig) {
     appEnvironment: config.appEnvironment,
     demoMode: config.demoMode,
     appName: config.appName,
+    publicOriginConfigured: Boolean(config.publicOrigin),
     database: {
       configured: config.database.configured,
       ssl: config.database.ssl,
