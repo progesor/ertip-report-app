@@ -71,41 +71,24 @@ export async function GET(request: Request): Promise<Response> {
 
   const runtime = readRuntimeConfig();
   const generatedAt = new Date();
-  let user:
-    | {
-        readonly userId: string;
-        readonly role: 'owner' | 'manager';
-        readonly allowedBusinessUnitIds: readonly string[];
-      }
-    | null = null;
-  const allowedBusinessUnitIds = runtime.demoMode
-    ? [INTERNATIONAL_BUSINESS_UNIT_ID]
-    : (await getCurrentSession())?.allowedBusinessUnitIds ?? [];
+  const session = runtime.demoMode ? null : await getCurrentSession();
 
-  if (!runtime.demoMode) {
-    const session = await getCurrentSession();
-
-    if (!session) {
-      return createErrorResponse('AUTHENTICATION_REQUIRED', 401, requestId);
-    }
-
-    if (!can(session.role, 'reports:read')) {
-      return createErrorResponse('REPORT_ACCESS_DENIED', 403, requestId);
-    }
-
-    user = {
-      userId: session.userId,
-      role: session.role,
-      allowedBusinessUnitIds: session.allowedBusinessUnitIds,
-    };
+  if (!runtime.demoMode && !session) {
+    return createErrorResponse('AUTHENTICATION_REQUIRED', 401, requestId);
   }
+
+  if (session && !can(session.role, 'reports:export')) {
+    return createErrorResponse('REPORT_EXPORT_ACCESS_DENIED', 403, requestId);
+  }
+
+  const allowedBusinessUnitIds = session?.allowedBusinessUnitIds ?? [INTERNATIONAL_BUSINESS_UNIT_ID];
 
   try {
     const filters = normalizeMonthlyQuotationReportFilters({
       request: readFilterInput(url.searchParams, {
         clearDimensions: format === 'pdf' && pdfScope === 'all',
       }),
-      allowedBusinessUnitIds: user?.allowedBusinessUnitIds ?? allowedBusinessUnitIds,
+      allowedBusinessUnitIds,
       now: generatedAt,
     });
 
@@ -117,7 +100,7 @@ export async function GET(request: Request): Promise<Response> {
       ? getDemoMonthlyQuotationReport(filters, generatedAt)
       : await getMonthlyQuotationReport({
           filters,
-          allowedBusinessUnitIds: user?.allowedBusinessUnitIds ?? allowedBusinessUnitIds,
+          allowedBusinessUnitIds,
           generatedAt,
           detailLimit: 1_000,
         });
@@ -125,7 +108,7 @@ export async function GET(request: Request): Promise<Response> {
       ? report.details
       : await getMonthlyQuotationExportDetails({
           filters,
-          allowedBusinessUnitIds: user?.allowedBusinessUnitIds ?? allowedBusinessUnitIds,
+          allowedBusinessUnitIds,
           generatedAt,
         });
     const completeReport = withCompleteMonthlyQuotationDetails(report, details);
@@ -142,10 +125,10 @@ export async function GET(request: Request): Promise<Response> {
       ...(format === 'pdf' && pdfScope !== null ? { scope: pdfScope } : {}),
     });
 
-    if (user) {
+    if (session) {
       const database = await getAppDatabase();
       await database.recordAudit({
-        actorUserId: user.userId,
+        actorUserId: session.userId,
         action: `report.export.${format}`,
         entityType: 'report_definition',
         entityId: completeReport.definition.code,
