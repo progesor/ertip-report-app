@@ -1,6 +1,7 @@
 FROM node:24.18.0-alpine AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@11.4.0 --activate
 WORKDIR /app
 
@@ -21,4 +22,5 @@ COPY packages/sync packages/sync
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 worker
 USER worker
 
+STOPSIGNAL SIGTERM
 CMD ["pnpm", "--filter", "@ertip/worker", "start"]
