@@ -53,7 +53,19 @@ jobs:
           cache: pnpm
           cache-dependency-path: package.json
       - run: pnpm install --no-frozen-lockfile
-      - run: pnpm lint
+      - id: lint
+        continue-on-error: true
+        run: pnpm lint > lint.log 2>&1
+      - if: steps.lint.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-diagnostics
+          path: lint.log
+          retention-days: 3
+      - if: steps.lint.outcome == 'failure'
+        run: |
+          cat lint.log
+          exit 1
 
   typecheck:
     name: typecheck
@@ -69,7 +81,19 @@ jobs:
           cache: pnpm
           cache-dependency-path: package.json
       - run: pnpm install --no-frozen-lockfile
-      - run: pnpm typecheck
+      - id: typecheck
+        continue-on-error: true
+        run: pnpm typecheck > typecheck.log 2>&1
+      - if: steps.typecheck.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-diagnostics
+          path: typecheck.log
+          retention-days: 3
+      - if: steps.typecheck.outcome == 'failure'
+        run: |
+          cat typecheck.log
+          exit 1
 
   unit:
     name: unit
