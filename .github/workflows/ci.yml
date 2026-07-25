@@ -170,7 +170,8 @@ jobs:
           }
           trap cleanup EXIT
 
-          docker run --detach --name ertip-worker-start-smoke \
+          docker run --detach --read-only --tmpfs /tmp:rw,nosuid,size=64m \
+            --name ertip-worker-start-smoke \
             -e APP_ENV=test \
             -e APP_DEMO_MODE=true \
             ertip-report-worker:ci
@@ -178,8 +179,11 @@ jobs:
           test "$(docker inspect --format '{{.State.Running}}' ertip-worker-start-smoke)" = "true"
           docker logs ertip-worker-start-smoke 2>&1 | tee worker-start-smoke.log
           grep -q '"event":"worker.started"' worker-start-smoke.log
+          ! grep -q 'Corepack is about to download' worker-start-smoke.log
+          ! grep -Eq 'pnpm.*install --production' worker-start-smoke.log
 
-          docker run --detach --name ertip-worker-retry-smoke \
+          docker run --detach --read-only --tmpfs /tmp:rw,nosuid,size=64m \
+            --name ertip-worker-retry-smoke \
             -e APP_ENV=test \
             -e APP_DEMO_MODE=true \
             -e DATABASE_URL=postgresql://ertip:ertip@127.0.0.1:1/unreachable \
@@ -189,6 +193,8 @@ jobs:
           test "$(docker inspect --format '{{.State.Running}}' ertip-worker-retry-smoke)" = "true"
           docker logs ertip-worker-retry-smoke 2>&1 | tee worker-retry-smoke.log
           grep -q '"event":"worker.database.retry"' worker-retry-smoke.log
+          ! grep -q 'Corepack is about to download' worker-retry-smoke.log
+          ! grep -Eq 'pnpm.*install --production' worker-retry-smoke.log
 
   browser-smoke:
     name: browser_smoke
