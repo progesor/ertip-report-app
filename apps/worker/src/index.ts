@@ -3,9 +3,14 @@ import {
   createDatabasePool,
   recoverInterruptedSyncRuns,
   SyncDatabase,
+  type SaleOrderSyncCounts,
 } from '@ertip/db';
 import { createOdooClient } from '@ertip/odoo-client';
-import { runSaleOrderSync, SaleOrderSyncError } from '@ertip/sync';
+import {
+  runSaleOrderSync,
+  SaleOrderSyncError,
+  type SaleOrderSyncStore,
+} from '@ertip/sync';
 
 const runtime = readRuntimeConfig();
 const heartbeatMs = 30_000;
@@ -30,6 +35,30 @@ function safeWorkerState() {
     odooConfigured: runtime.odoo.configured,
     processing,
     timestamp: new Date().toISOString(),
+  };
+}
+
+function compactZeroCompanyCounts(counts: SaleOrderSyncCounts): SaleOrderSyncCounts {
+  return {
+    ...counts,
+    companyCounts: counts.companyCounts.filter(
+      (company) =>
+        company.totalCount > 0 ||
+        company.missingSalespersonCount > 0 ||
+        Object.values(company.stateCounts).some((count) => count > 0),
+    ),
+  };
+}
+
+function createSyncStore(database: SyncDatabase): SaleOrderSyncStore {
+  return {
+    getBusinessUnitMappings: () => database.getBusinessUnitMappings(),
+    setSaleOrderSyncSourceCount: (runId, sourceCount) =>
+      database.setSaleOrderSyncSourceCount(runId, sourceCount),
+    applySaleOrderSyncBatch: (runId, batch, cursorSourceId) =>
+      database.applySaleOrderSyncBatch(runId, batch, cursorSourceId),
+    finalizeSaleOrderSync: (runId, sourceCounts) =>
+      database.finalizeSaleOrderSync(runId, compactZeroCompanyCounts(sourceCounts)),
   };
 }
 
@@ -89,7 +118,11 @@ async function processNextSyncRun(): Promise<void> {
     });
 
     try {
-      const completed = await runSaleOrderSync({ client, store: syncDatabase, run });
+      const completed = await runSaleOrderSync({
+        client,
+        store: createSyncStore(syncDatabase),
+        run,
+      });
       console.info(
         JSON.stringify({
           event: 'worker.sync.completed',
