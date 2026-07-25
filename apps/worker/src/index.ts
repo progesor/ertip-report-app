@@ -11,6 +11,7 @@ import {
   SaleOrderSyncError,
   type SaleOrderSyncStore,
 } from '@ertip/sync';
+import type { PoolClient } from 'pg';
 
 const runtime = readRuntimeConfig();
 const heartbeatMs = 30_000;
@@ -25,13 +26,11 @@ const databasePool = runtime.database.connectionString
     })
   : null;
 const syncDatabase = databasePool ? new SyncDatabase(databasePool) : null;
-type DatabasePool = NonNullable<typeof databasePool>;
-type WorkerLeaseClient = Awaited<ReturnType<DatabasePool['connect']>>;
 let processing = false;
 let stopping = false;
 let acquiringWorkerLease = false;
 let standbyLogged = false;
-let workerLeaseClient: WorkerLeaseClient | null = null;
+let workerLeaseClient: PoolClient | null = null;
 let poller: ReturnType<typeof setInterval> | null = null;
 let heartbeat: ReturnType<typeof setInterval> | null = null;
 
