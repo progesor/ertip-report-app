@@ -16,7 +16,7 @@
     "format:check": "node tooling/format.mjs --check",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "unit": "tsx --test apps/web/lib/security.unit.test.ts packages/auth/src/credentials.unit.test.ts packages/auth/src/policies.unit.test.ts packages/odoo-client/src/client.unit.test.ts packages/reporting/src/metrics.unit.test.ts",
+    "unit": "tsx --test apps/web/lib/security.unit.test.ts packages/auth/src/credentials.unit.test.ts packages/auth/src/policies.unit.test.ts packages/odoo-client/src/client.unit.test.ts packages/odoo-client/src/discovery.unit.test.ts packages/reporting/src/metrics.unit.test.ts",
     "integration": "tsx --test tests/integration/odoo-client.integration.test.ts tests/integration/database-auth.integration.test.ts",
     "build": "pnpm --filter @ertip/web build",
     "browser:smoke": "playwright test --config apps/web/playwright.config.ts",
