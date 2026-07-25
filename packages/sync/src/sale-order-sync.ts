@@ -45,6 +45,7 @@ const PARTNER_FIELDS = [
 ] as const;
 
 type OdooRecord = Readonly<Record<string, unknown>>;
+type ReferenceKind = 'customer' | 'salesperson';
 type SyncStage =
   | 'source-count'
   | 'page-read'
@@ -232,6 +233,23 @@ function readRequiredString(record: OdooRecord, field: string): string {
   return value ?? invalidSourceRecord(record, field, 'text value');
 }
 
+function createReferenceDisplayName(
+  kind: ReferenceKind,
+  id: number,
+  name: unknown,
+  recordAccessible: boolean,
+): string {
+  const sourceName = readString(name);
+
+  if (sourceName !== null) {
+    return sourceName;
+  }
+
+  const label = kind === 'customer' ? 'müşteri' : 'kullanıcı';
+  const status = recordAccessible ? 'İsimsiz' : 'Erişilemeyen';
+  return `${status} ${label} · Odoo #${id}`;
+}
+
 function readSourceState(record: OdooRecord): SaleOrderSourceState {
   const state = readRequiredString(record, 'state');
 
@@ -347,28 +365,68 @@ async function readReferenceRecords(
   );
 }
 
-function mapSalespeople(
+function indexReferenceRecords(
   records: readonly OdooRecord[],
-): readonly SaleOrderSyncSalespersonInput[] {
-  return records.map((record) => ({
-    odooUserId: readRequiredInteger(record, 'id'),
-    displayName: readRequiredString(record, 'name'),
-    active: readBoolean(record.active),
-    defaultCompanyId: readMany2OneId(record.company_id),
-    writeDate: readString(record.write_date),
-  }));
+): ReadonlyMap<number, OdooRecord> {
+  const indexed = new Map<number, OdooRecord>();
+
+  for (const record of records) {
+    indexed.set(readRequiredInteger(record, 'id'), record);
+  }
+
+  return indexed;
 }
 
-function mapCustomers(records: readonly OdooRecord[]): readonly SaleOrderSyncCustomerInput[] {
-  return records.map((record) => ({
-    odooPartnerId: readRequiredInteger(record, 'id'),
-    displayName: readRequiredString(record, 'name'),
-    active: readBoolean(record.active),
-    companyId: readMany2OneId(record.company_id),
-    commercialPartnerId: readMany2OneId(record.commercial_partner_id),
-    customerRank: readInteger(record.customer_rank),
-    writeDate: readString(record.write_date),
-  }));
+function mapSalespeople(
+  records: readonly OdooRecord[],
+  requestedIds: readonly number[],
+): readonly SaleOrderSyncSalespersonInput[] {
+  const indexed = indexReferenceRecords(records);
+
+  return requestedIds.map((odooUserId) => {
+    const record = indexed.get(odooUserId);
+
+    return {
+      odooUserId,
+      displayName: createReferenceDisplayName(
+        'salesperson',
+        odooUserId,
+        record?.name,
+        record !== undefined,
+      ),
+      active: record ? readBoolean(record.active) : null,
+      defaultCompanyId: record ? readMany2OneId(record.company_id) : null,
+      writeDate: record ? readString(record.write_date) : null,
+    };
+  });
+}
+
+function mapCustomers(
+  records: readonly OdooRecord[],
+  requestedIds: readonly number[],
+): readonly SaleOrderSyncCustomerInput[] {
+  const indexed = indexReferenceRecords(records);
+
+  return requestedIds.map((odooPartnerId) => {
+    const record = indexed.get(odooPartnerId);
+
+    return {
+      odooPartnerId,
+      displayName: createReferenceDisplayName(
+        'customer',
+        odooPartnerId,
+        record?.name,
+        record !== undefined,
+      ),
+      active: record ? readBoolean(record.active) : null,
+      companyId: record ? readMany2OneId(record.company_id) : null,
+      commercialPartnerId: record
+        ? readMany2OneId(record.commercial_partner_id)
+        : odooPartnerId,
+      customerRank: record ? readInteger(record.customer_rank) : null,
+      writeDate: record ? readString(record.write_date) : null,
+    };
+  });
 }
 
 function mapOrders(
@@ -461,8 +519,8 @@ export async function runSaleOrderSync(input: {
       readReferenceRecords(input.client, 'res.partner', partnerIds, PARTNER_FIELDS),
     ]);
     const batch: SaleOrderSyncBatch = {
-      salespeople: mapSalespeople(userRecords),
-      customers: mapCustomers(partnerRecords),
+      salespeople: mapSalespeople(userRecords, userIds),
+      customers: mapCustomers(partnerRecords, partnerIds),
       orders,
     };
     const finalRecordId = orders.at(-1)?.odooId;

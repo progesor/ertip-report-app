@@ -120,7 +120,7 @@ function createClient(): OdooClient {
         return [
           {
             id: 10,
-            name: 'Ecem Aygül',
+            name: false,
             active: true,
             company_id: 25,
             write_date: '2026-06-09 14:02:20',
@@ -133,21 +133,12 @@ function createClient(): OdooClient {
         return [
           {
             id: 101,
-            name: 'Customer A',
+            name: false,
             active: true,
             company_id: false,
             commercial_partner_id: 101,
             customer_rank: '1',
             write_date: '2025-05-17 08:22:48',
-          },
-          {
-            id: 202,
-            name: 'Customer B',
-            active: true,
-            company_id: 25,
-            commercial_partner_id: 202,
-            customer_rank: 1,
-            write_date: '2026-06-09 14:02:20',
           },
         ] as TResult;
       }
@@ -157,7 +148,7 @@ function createClient(): OdooClient {
   };
 }
 
-test('syncs JSON-2 raw relations with a stable cursor and preserves unassigned salesperson', async () => {
+test('syncs raw relations and preserves nameless or inaccessible references', async () => {
   const run = createRun();
   const batches: SaleOrderSyncBatch[] = [];
   const finalizedCountResults: SaleOrderSyncCounts[] = [];
@@ -209,25 +200,39 @@ test('syncs JSON-2 raw relations with a stable cursor and preserves unassigned s
 
   const result = await runSaleOrderSync({ client: createClient(), store, run });
   const finalizedCounts = finalizedCountResults[0];
+  const batch = batches[0];
 
   assert.ok(finalizedCounts);
+  assert.ok(batch);
   assert.equal(result.status, 'succeeded');
   assert.equal(sourceCount, 2);
   assert.equal(batches.length, 1);
-  assert.equal(batches[0]?.orders.length, 2);
-  assert.equal(batches[0]?.customers.length, 2);
-  assert.equal(batches[0]?.salespeople.length, 1);
-  assert.equal(batches[0]?.orders.find(({ odooId }) => odooId === 734)?.odooSalespersonId, null);
-  assert.equal(batches[0]?.orders.find(({ odooId }) => odooId === 734)?.amountTotal, 1250);
+  assert.equal(batch.orders.length, 2);
+  assert.equal(batch.customers.length, 2);
+  assert.equal(batch.salespeople.length, 1);
+  assert.equal(batch.orders.find(({ odooId }) => odooId === 734)?.odooSalespersonId, null);
+  assert.equal(batch.orders.find(({ odooId }) => odooId === 734)?.amountTotal, 1250);
   assert.equal(
-    batches[0]?.orders.find(({ odooId }) => odooId === 734)?.businessUnitId,
+    batch.orders.find(({ odooId }) => odooId === 734)?.businessUnitId,
     '11111111-1111-4111-8111-111111111111',
   );
   assert.equal(
-    batches[0]?.orders.find(({ odooId }) => odooId === 6460)?.businessUnitId,
+    batch.orders.find(({ odooId }) => odooId === 6460)?.businessUnitId,
     '22222222-2222-4222-8222-222222222222',
   );
-  assert.equal(batches[0]?.customers.find(({ odooPartnerId }) => odooPartnerId === 101)?.customerRank, 1);
+  assert.equal(batch.customers.find(({ odooPartnerId }) => odooPartnerId === 101)?.customerRank, 1);
+  assert.equal(
+    batch.customers.find(({ odooPartnerId }) => odooPartnerId === 101)?.displayName,
+    'İsimsiz müşteri · Odoo #101',
+  );
+  assert.equal(
+    batch.customers.find(({ odooPartnerId }) => odooPartnerId === 202)?.displayName,
+    'Erişilemeyen müşteri · Odoo #202',
+  );
+  assert.equal(
+    batch.salespeople.find(({ odooUserId }) => odooUserId === 10)?.displayName,
+    'İsimsiz kullanıcı · Odoo #10',
+  );
   assert.equal(finalizedCounts.stateCounts.draft, 1);
   assert.equal(finalizedCounts.stateCounts.sale, 1);
   assert.equal(finalizedCounts.missingSalespersonCount, 1);

@@ -1,0 +1,73 @@
+name: Worker Lease
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-lease-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  worker-lease:
+    name: worker_lease
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ertip
+          POSTGRES_PASSWORD: ertip
+          POSTGRES_DB: ertip_report
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ertip -d ertip_report"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build worker image
+        run: docker build --file Dockerfile.worker --tag ertip-report-worker:lease .
+      - name: Verify one leader and one standby
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker rm -f ertip-worker-leader-a ertip-worker-leader-b >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          common_args=(
+            --detach
+            --network host
+            --read-only
+            --tmpfs /tmp:rw,nosuid,size=64m
+            -e APP_ENV=test
+            -e APP_DEMO_MODE=false
+            -e DATABASE_URL=postgresql://ertip:ertip@127.0.0.1:5432/ertip_report
+            -e DATABASE_SSL=false
+            -e ODOO_BASE_URL=https://ertipmedical.odoo.com
+            -e ODOO_DATABASE=ertipmedical
+            -e ODOO_API_KEY=test-only-not-used
+          )
+
+          docker run "${common_args[@]}" --name ertip-worker-leader-a ertip-report-worker:lease
+          docker run "${common_args[@]}" --name ertip-worker-leader-b ertip-report-worker:lease
+          sleep 8
+
+          test "$(docker inspect --format '{{.State.Running}}' ertip-worker-leader-a)" = "true"
+          test "$(docker inspect --format '{{.State.Running}}' ertip-worker-leader-b)" = "true"
+
+          docker logs ertip-worker-leader-a 2>&1 | tee worker-a.log
+          docker logs ertip-worker-leader-b 2>&1 | tee worker-b.log
+          cat worker-a.log worker-b.log > combined-worker.log
+
+          test "$(grep -c '"event":"worker.lease.acquired"' combined-worker.log)" -eq 1
+          test "$(grep -c '"event":"worker.lease.standby"' combined-worker.log)" -eq 1
+          ! grep -q '"event":"worker.sync.started"' combined-worker.log

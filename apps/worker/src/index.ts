@@ -11,11 +11,13 @@ import {
   SaleOrderSyncError,
   type SaleOrderSyncStore,
 } from '@ertip/sync';
+import type { PoolClient } from 'pg';
 
 const runtime = readRuntimeConfig();
 const heartbeatMs = 30_000;
 const pollMs = 5_000;
 const startupRetryMaximumMs = 30_000;
+const workerLeaseKey = 1_904_202_628;
 const databasePool = runtime.database.connectionString
   ? createDatabasePool({
       connectionString: runtime.database.connectionString,
@@ -26,6 +28,9 @@ const databasePool = runtime.database.connectionString
 const syncDatabase = databasePool ? new SyncDatabase(databasePool) : null;
 let processing = false;
 let stopping = false;
+let acquiringWorkerLease = false;
+let standbyLogged = false;
+let workerLeaseClient: PoolClient | null = null;
 let poller: ReturnType<typeof setInterval> | null = null;
 let heartbeat: ReturnType<typeof setInterval> | null = null;
 
@@ -36,6 +41,7 @@ function safeWorkerState() {
     demoMode: runtime.demoMode,
     databaseConfigured: runtime.database.configured,
     odooConfigured: runtime.odoo.configured,
+    leaseHeld: workerLeaseClient !== null,
     processing,
     timestamp: new Date().toISOString(),
   };
@@ -91,12 +97,6 @@ async function initializeWorker(): Promise<void> {
   while (!stopping) {
     try {
       await syncDatabase.migrate();
-      const recoveredRuns = await recoverInterruptedSyncRuns(databasePool);
-
-      if (recoveredRuns > 0) {
-        console.warn(JSON.stringify({ event: 'worker.sync.recovered', recoveredRuns }));
-      }
-
       console.info(
         JSON.stringify({
           event: 'worker.database.ready',
@@ -126,6 +126,115 @@ async function initializeWorker(): Promise<void> {
   }
 }
 
+async function releaseWorkerLease(): Promise<void> {
+  const client = workerLeaseClient;
+  workerLeaseClient = null;
+
+  if (!client) {
+    return;
+  }
+
+  try {
+    await client.query('SELECT pg_advisory_unlock($1)', [workerLeaseKey]);
+    client.release();
+  } catch {
+    client.release(true);
+  }
+}
+
+async function ensureWorkerLease(): Promise<boolean> {
+  if (!databasePool || stopping) {
+    return false;
+  }
+
+  if (workerLeaseClient) {
+    try {
+      await workerLeaseClient.query('SELECT 1');
+      return true;
+    } catch (error) {
+      workerLeaseClient.release(true);
+      workerLeaseClient = null;
+      console.error(
+        JSON.stringify({
+          event: 'worker.lease.lost',
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          errorCode: getSafeErrorCode(error),
+          ...safeWorkerState(),
+        }),
+      );
+    }
+  }
+
+  if (acquiringWorkerLease) {
+    return false;
+  }
+
+  acquiringWorkerLease = true;
+
+  try {
+    const candidate = await databasePool.connect();
+    const result = await candidate.query<{ readonly acquired: boolean }>(
+      'SELECT pg_try_advisory_lock($1) AS acquired',
+      [workerLeaseKey],
+    );
+
+    if (result.rows[0]?.acquired !== true) {
+      candidate.release();
+
+      if (!standbyLogged) {
+        standbyLogged = true;
+        console.info(JSON.stringify({ event: 'worker.lease.standby', ...safeWorkerState() }));
+      }
+
+      return false;
+    }
+
+    workerLeaseClient = candidate;
+    standbyLogged = false;
+    candidate.on('error', (error) => {
+      if (workerLeaseClient === candidate) {
+        workerLeaseClient = null;
+        console.error(
+          JSON.stringify({
+            event: 'worker.lease.lost',
+            errorName: error.name,
+            errorCode: getSafeErrorCode(error),
+            ...safeWorkerState(),
+          }),
+        );
+      }
+    });
+
+    try {
+      const recoveredRuns = await recoverInterruptedSyncRuns(databasePool);
+
+      console.info(
+        JSON.stringify({
+          event: 'worker.lease.acquired',
+          recoveredRuns,
+          ...safeWorkerState(),
+        }),
+      );
+      return true;
+    } catch (error) {
+      await releaseWorkerLease();
+      throw error;
+    }
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'worker.lease.retry',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        errorCode: getSafeErrorCode(error),
+        ...safeWorkerState(),
+      }),
+    );
+    return false;
+  } finally {
+    acquiringWorkerLease = false;
+  }
+}
+
 async function processNextSyncRun(): Promise<void> {
   if (processing || stopping || !syncDatabase) {
     return;
@@ -143,6 +252,10 @@ async function processNextSyncRun(): Promise<void> {
   processing = true;
 
   try {
+    if (!(await ensureWorkerLease())) {
+      return;
+    }
+
     const run = await syncDatabase.claimNextSaleOrderSync();
 
     if (!run) {
@@ -230,6 +343,8 @@ async function shutdown(signal: string): Promise<void> {
   if (heartbeat) {
     clearInterval(heartbeat);
   }
+
+  await releaseWorkerLease();
 
   if (syncDatabase) {
     await syncDatabase.close();
