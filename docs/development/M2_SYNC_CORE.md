@@ -87,7 +87,7 @@ No Odoo create, write, unlink, action, or workflow method is available in the ad
 
 ## Retry policy
 
-Transient failures are retried up to four attempts with bounded backoff:
+Transient Odoo failures are retried up to four attempts with bounded backoff:
 
 - timeout,
 - network error,
@@ -95,6 +95,8 @@ Transient failures are retried up to four attempts with bounded backoff:
 - temporary Odoo unavailability.
 
 Authentication, authorization, invalid request, unsupported state, unmapped company, and invalid source-record failures are not hidden by retry.
+
+Worker startup has a separate database readiness loop. A temporary PostgreSQL outage or Coolify service-order race does not terminate the container. The worker logs `worker.database.retry` with a safe error name/code and retries with bounded exponential delay up to 30 seconds. Once migrations and recovery complete it logs `worker.database.ready` and `worker.started`.
 
 ## Idempotency and stale records
 
@@ -160,25 +162,56 @@ Two Coolify applications must track the same repository branch and commit:
 
 - Dockerfile: `Dockerfile.worker`
 - no public domain or port
+- HTTP healthcheck disabled
 - same `DATABASE_URL`, `DATABASE_SSL`, `ODOO_BASE_URL`, `ODOO_DATABASE`, and `ODOO_API_KEY`
 - `APP_ENV=production`
+- Coolify **Start Command** left empty; the image command is canonical
 
-The API key remains a Coolify runtime secret and is never baked into either image.
+The worker image command is:
+
+```text
+pnpm --filter @ertip/worker start
+```
+
+The package start script uses the production `tsx` dependency to execute the TypeScript workspace consistently. A Coolify start-command override is unnecessary and should not replace the image command.
+
+The API key remains a Coolify runtime secret and is never baked into either image. Environment variables containing secrets must be configured as runtime-only values where Coolify supports that distinction.
+
+Deployment logs prove image construction and container creation only. Runtime failures must be diagnosed from the application's live container logs. Expected startup events are:
+
+```text
+worker.booting
+worker.database.ready
+worker.started
+worker.heartbeat
+```
+
+A persistent database configuration or reachability problem produces `worker.database.retry` while the container remains running instead of entering a restart loop.
 
 ## First production validation
 
 1. Deploy web and worker from the same commit.
-2. Confirm database schema version is `2`.
-3. Queue **İlk Tam Senkronizasyonu Başlat**.
-4. Confirm the worker claims the job.
-5. Expected source baseline:
+2. Confirm the worker reaches `worker.started` and continues heartbeat logging.
+3. Confirm database schema version is `2`.
+4. Queue **İlk Tam Senkronizasyonu Başlat**.
+5. Confirm the worker claims the job.
+6. Expected source baseline:
    - total `6,875`,
    - company `1`: `3,085`,
    - company `25`: `3,790`,
    - missing salesperson: `2`.
-6. Confirm run status `succeeded` and reconciliation `true`.
-7. Queue the same full sync again.
-8. Confirm the second run also succeeds with the same totals and without duplicated local rows.
+7. Confirm run status `succeeded` and reconciliation `true`.
+8. Queue the same full sync again.
+9. Confirm the second run also succeeds with the same totals and without duplicated local rows.
+
+## CI runtime gates
+
+The worker Docker image is not considered valid merely because it builds. CI starts the production image in two modes:
+
+1. database intentionally unconfigured — the worker must reach `worker.started` and stay running,
+2. database intentionally unreachable — the worker must emit `worker.database.retry` and stay running.
+
+These gates prevent a future Docker CMD, dependency, TypeScript runtime, or startup-recovery regression from reaching production unnoticed.
 
 ## Open items after this slice
 
