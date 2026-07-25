@@ -45,17 +45,37 @@ const PARTNER_FIELDS = [
 ] as const;
 
 type OdooRecord = Readonly<Record<string, unknown>>;
-type SyncStage = 'source-count' | 'page-read' | 'reference-read' | 'database-write' | 'reconciliation';
+type SyncStage =
+  | 'source-count'
+  | 'page-read'
+  | 'reference-read'
+  | 'database-write'
+  | 'reconciliation';
+
+interface SaleOrderSyncErrorOptions {
+  readonly code: string;
+  readonly stage: SyncStage;
+  readonly cause?: unknown;
+  readonly sourceRecordId?: number | null;
+  readonly sourceField?: string | null;
+  readonly sourceValueType?: string | null;
+}
 
 export class SaleOrderSyncError extends Error {
   public readonly code: string;
   public readonly stage: SyncStage;
+  public readonly sourceRecordId: number | null;
+  public readonly sourceField: string | null;
+  public readonly sourceValueType: string | null;
 
-  public constructor(message: string, options: { readonly code: string; readonly stage: SyncStage; readonly cause?: unknown }) {
+  public constructor(message: string, options: SaleOrderSyncErrorOptions) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.name = 'SaleOrderSyncError';
     this.code = options.code;
     this.stage = options.stage;
+    this.sourceRecordId = options.sourceRecordId ?? null;
+    this.sourceField = options.sourceField ?? null;
+    this.sourceValueType = options.sourceValueType ?? null;
   }
 }
 
@@ -109,7 +129,27 @@ async function callWithRetry<TResult>(
 }
 
 function readNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized || !/^-?(?:\d+\.?\d*|\.\d+)$/.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readInteger(value: unknown): number | null {
+  const parsed = readNumber(value);
+  return parsed !== null && Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 function readString(value: unknown): string | null {
@@ -121,46 +161,75 @@ function readBoolean(value: unknown): boolean | null {
 }
 
 function readMany2OneId(value: unknown): number | null {
-  return Array.isArray(value) ? readNumber(value[0]) : null;
+  const directId = readInteger(value);
+
+  if (directId !== null) {
+    return directId;
+  }
+
+  if (Array.isArray(value)) {
+    return readInteger(value[0]);
+  }
+
+  if (typeof value === 'object' && value !== null && 'id' in value) {
+    return readInteger((value as { readonly id?: unknown }).id);
+  }
+
+  return null;
+}
+
+function describeValueType(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+
+  if (value === false) {
+    return 'false';
+  }
+
+  if (Array.isArray(value)) {
+    return 'array';
+  }
+
+  return typeof value;
+}
+
+function readDiagnosticRecordId(record: OdooRecord): number | null {
+  return readInteger(record.id);
+}
+
+function invalidSourceRecord(
+  record: OdooRecord,
+  field: string,
+  expected: string,
+): never {
+  throw new SaleOrderSyncError(`Source field ${field} is not a valid ${expected}.`, {
+    code: 'INVALID_SOURCE_RECORD',
+    stage: 'page-read',
+    sourceRecordId: readDiagnosticRecordId(record),
+    sourceField: field,
+    sourceValueType: describeValueType(record[field]),
+  });
+}
+
+function readRequiredInteger(record: OdooRecord, field: string): number {
+  const value = readInteger(record[field]);
+  return value ?? invalidSourceRecord(record, field, 'integer');
 }
 
 function readRequiredNumber(record: OdooRecord, field: string): number {
   const value = readNumber(record[field]);
-
-  if (value === null) {
-    throw new SaleOrderSyncError(`Required numeric field is missing: ${field}`, {
-      code: 'INVALID_SOURCE_RECORD',
-      stage: 'page-read',
-    });
-  }
-
-  return value;
+  return value ?? invalidSourceRecord(record, field, 'number');
 }
 
 function readRequiredMany2One(record: OdooRecord, field: string): number {
   const value = readMany2OneId(record[field]);
-
-  if (value === null) {
-    throw new SaleOrderSyncError(`Required relation field is missing: ${field}`, {
-      code: 'INVALID_SOURCE_RECORD',
-      stage: 'page-read',
-    });
-  }
-
-  return value;
+  return value ?? invalidSourceRecord(record, field, 'many2one relation');
 }
 
 function readRequiredString(record: OdooRecord, field: string): string {
   const value = readString(record[field]);
-
-  if (value === null) {
-    throw new SaleOrderSyncError(`Required text field is missing: ${field}`, {
-      code: 'INVALID_SOURCE_RECORD',
-      stage: 'page-read',
-    });
-  }
-
-  return value;
+  return value ?? invalidSourceRecord(record, field, 'text value');
 }
 
 function readSourceState(record: OdooRecord): SaleOrderSourceState {
@@ -170,6 +239,9 @@ function readSourceState(record: OdooRecord): SaleOrderSourceState {
     throw new SaleOrderSyncError(`Unsupported sale.order state: ${state}`, {
       code: 'UNSUPPORTED_SOURCE_STATE',
       stage: 'page-read',
+      sourceRecordId: readDiagnosticRecordId(record),
+      sourceField: 'state',
+      sourceValueType: describeValueType(record.state),
     });
   }
 
@@ -271,13 +343,15 @@ async function readReferenceRecords(
   }
 
   return callWithRetry('reference-read', () =>
-    client.call<readonly OdooRecord[]>(model, 'read', { ids, fields }),
+    client.call<readonly OdooRecord[]>(model, 'read', { ids, fields, load: null }),
   );
 }
 
-function mapSalespeople(records: readonly OdooRecord[]): readonly SaleOrderSyncSalespersonInput[] {
+function mapSalespeople(
+  records: readonly OdooRecord[],
+): readonly SaleOrderSyncSalespersonInput[] {
   return records.map((record) => ({
-    odooUserId: readRequiredNumber(record, 'id'),
+    odooUserId: readRequiredInteger(record, 'id'),
     displayName: readRequiredString(record, 'name'),
     active: readBoolean(record.active),
     defaultCompanyId: readMany2OneId(record.company_id),
@@ -287,12 +361,12 @@ function mapSalespeople(records: readonly OdooRecord[]): readonly SaleOrderSyncS
 
 function mapCustomers(records: readonly OdooRecord[]): readonly SaleOrderSyncCustomerInput[] {
   return records.map((record) => ({
-    odooPartnerId: readRequiredNumber(record, 'id'),
+    odooPartnerId: readRequiredInteger(record, 'id'),
     displayName: readRequiredString(record, 'name'),
     active: readBoolean(record.active),
     companyId: readMany2OneId(record.company_id),
     commercialPartnerId: readMany2OneId(record.commercial_partner_id),
-    customerRank: readNumber(record.customer_rank),
+    customerRank: readInteger(record.customer_rank),
     writeDate: readString(record.write_date),
   }));
 }
@@ -306,23 +380,20 @@ function mapOrders(
     const mapping = mappings.get(companyId);
 
     if (!mapping) {
-      throw new SaleOrderSyncError(`No business-unit mapping exists for Odoo company ${companyId}.`, {
-        code: 'UNMAPPED_COMPANY',
-        stage: 'page-read',
-      });
-    }
-
-    const amountTotal = readNumber(record.amount_total);
-
-    if (amountTotal === null) {
-      throw new SaleOrderSyncError('sale.order amount_total is missing or invalid.', {
-        code: 'INVALID_SOURCE_RECORD',
-        stage: 'page-read',
-      });
+      throw new SaleOrderSyncError(
+        `No business-unit mapping exists for Odoo company ${companyId}.`,
+        {
+          code: 'UNMAPPED_COMPANY',
+          stage: 'page-read',
+          sourceRecordId: readDiagnosticRecordId(record),
+          sourceField: 'company_id',
+          sourceValueType: describeValueType(record.company_id),
+        },
+      );
     }
 
     return {
-      odooId: readRequiredNumber(record, 'id'),
+      odooId: readRequiredInteger(record, 'id'),
       businessUnitId: mapping.businessUnitId,
       odooCompanyId: companyId,
       odooSalespersonId: readMany2OneId(record.user_id),
@@ -332,7 +403,7 @@ function mapOrders(
       createDate: readRequiredString(record, 'create_date'),
       dateOrder: readRequiredString(record, 'date_order'),
       validityDate: readString(record.validity_date),
-      amountTotal,
+      amountTotal: readRequiredNumber(record, 'amount_total'),
       writeDate: readRequiredString(record, 'write_date'),
     };
   });
@@ -349,6 +420,7 @@ async function readPage(
       fields: SALE_ORDER_FIELDS,
       order: 'id asc',
       limit: run.pageSize,
+      load: null,
     }),
   );
 }
@@ -367,7 +439,9 @@ export async function runSaleOrderSync(input: {
     });
   }
 
-  const mappingByCompanyId = new Map(mappings.map((mapping) => [mapping.odooCompanyId, mapping]));
+  const mappingByCompanyId = new Map(
+    mappings.map((mapping) => [mapping.odooCompanyId, mapping]),
+  );
   const sourceCounts = await readSourceCounts(input.client, input.run, mappings);
   await input.store.setSaleOrderSyncSourceCount(input.run.id, sourceCounts.totalCount);
   let cursorSourceId = input.run.cursorSourceId;
