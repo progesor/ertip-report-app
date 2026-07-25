@@ -3,3 +3,7 @@
 .panel-title .button {
   text-decoration: none;
 }
+
+.report-heading .badges span:nth-child(2)::before {
+  content: 'Ana para birimi: ';
+}
