@@ -1,4 +1,5 @@
 export * from './client.ts';
+export * from './coverage.ts';
 export {
   TENANT_DISCOVERY_MODELS,
   type TenantDiscoveryCompany,
