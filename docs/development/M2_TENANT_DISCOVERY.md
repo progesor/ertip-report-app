@@ -12,7 +12,7 @@ Keşif yalnızca Owner rolüne açıktır ve Odoo üzerinde yalnızca şu salt o
 
 API anahtarı response, audit metadata, browser state veya repository içine yazılmaz.
 
-## Uygulama yüzeyi
+## Uygulama yüzeyleri
 
 Owner dashboard içindeki **Tenant Keşfini Çalıştır** eylemi şu endpoint'i çağırır:
 
@@ -21,6 +21,14 @@ POST /api/owner/odoo/discovery
 ```
 
 Endpoint aynı-origin kontrolü ve `admin:connections` yetkisi gerektirir.
+
+Şirket bazlı satış kapsamı ve güvenli atanmamış teklif incelemesi için:
+
+```text
+GET /api/owner/odoo/coverage
+```
+
+Coverage endpoint'i `admin:data-quality` yetkisi gerektirir, cache edilmez ve yalnızca güvenli teknik metadata döndürür.
 
 ## Keşfedilen kapsam
 
@@ -32,7 +40,14 @@ Endpoint aynı-origin kontrolü ve `admin:connections` yetkisi gerektirir.
 - entegrasyon kullanıcısının okuyabildiği şirket ID kapsamı
 - birden fazla şirket okunabiliyorsa multi-company doğrulaması
 
-Yurt İçi / Yurt Dışı eşlemesi şirket adına göre otomatik tahmin edilmez. Owner, canlı sonuçtaki sabit `res.company.id` değerlerini kullanarak eşlemeyi sonraki dilimde onaylar.
+Canlı eşleme doğrulanmıştır:
+
+```text
+Yurt Dışı -> res.company.id = 1
+Yurt İçi   -> res.company.id = 25
+```
+
+Şirket adı, noktalama, son ek veya para birimi runtime eşleme anahtarı değildir.
 
 ### Kullanıcı şirket kapsamı
 
@@ -45,7 +60,7 @@ Yurt İçi / Yurt Dışı eşlemesi şirket adına göre otomatik tahmin edilmez
 - izinli şirket ID'leri
 - keşfedilen tüm şirketleri kapsayıp kapsamadığı
 
-Tam login response içinde gösterilmez. Entegrasyon hesabı Owner tarafından ad ve maskeli login üzerinden belirlenir.
+Tam login response içinde gösterilmez. Görünür kullanıcı listesi runtime API key sahibini tek başına kanıtlamaz; entegrasyon hesabı ayrıca operasyonel olarak doğrulanır.
 
 ### Model ve alan envanteri
 
@@ -87,7 +102,7 @@ Keşif, en fazla 100 açık ve 100 onaylı `sale.order` kaydından yalnızca şu
 
 Müşteri, teklif adı, tutar veya satır detayı bu örneklemde okunmaz.
 
-Onaylı kayıtlarda `date_order`, `create_date` sonrasına taşınmışsa veya ay sınırını geçmişse teklif üretim cohort'u için `create_date` önerilir. Canlı örneklem yeterli kanıt üretmezse sonuç `needs_review` kalır ve tarih alanı varsayılmaz.
+Canlı tenant kanıtı sonucunda teklif üretim kohortu kesin olarak `create_date` seçilmiştir. `date_order`, onay sonrası değişebildiği için teklif üretim ayını belirlemez.
 
 ## Veri kalite temel raporu
 
@@ -102,7 +117,37 @@ Keşif aşağıdaki sayısal kontrolleri üretir:
 - boş `create_date`
 - boş `date_order`
 
+25 Temmuz 2026 canlı doğrulamasında durum dağılımı toplam `6.875` kayıtla tam mutabakat sağlamıştır:
+
+```text
+draft  = 1.088
+sent   = 1
+sale   = 5.717
+cancel = 69
+```
+
 Bir model veya sorgu ACL nedeniyle okunamazsa tüm keşif düşürülmez; ilgili bölüm güvenli hata koduyla kısmi sonuç verir. `res.company` erişimi temel ön koşuldur ve okunamıyorsa keşif başarısız sayılır.
+
+## Şirket bazlı coverage diagnostics
+
+Coverage endpoint'i sorguları sırayla ve geçici Odoo hatalarında sınırlı retry ile çalıştırır. Her erişilebilir şirket için:
+
+- toplam `sale.order` sayısı,
+- `draft`, `sent`, `sale`, `cancel` sayıları,
+- durum toplamının şirket toplamıyla mutabakatı,
+- boş `user_id` sayısı
+
+üretilir.
+
+Atanmamış kayıt örneği yalnızca şu alanları içerebilir:
+
+- `sale.order.id`
+- `company_id`
+- `state`
+- `create_date`
+- `date_order`
+
+Müşteri, teklif adı, tutar, satır içeriği veya iletişim bilgisi okunmaz ve döndürülmez.
 
 ## Production doğrulama akışı
 
@@ -111,14 +156,16 @@ Bir model veya sorgu ACL nedeniyle okunamazsa tüm keşif düşürülmez; ilgili
 3. Owner olarak `https://report.progesor.net/` adresine giriş yapılır.
 4. Önce mevcut Odoo bağlantı testi çalıştırılır.
 5. **Tenant Keşfini Çalıştır** seçilir.
-6. Şirket ID/ad sonuçları ile Yurt İçi ve Yurt Dışı eşlemesi onaylanır.
-7. Entegrasyon kullanıcısının iki şirketi de kapsadığı doğrulanır.
-8. `sale.order` özel alanları ve tarih kanıt kayıtları incelenir.
-9. Sonuçlar secret veya ham müşteri verisi içermeyen M2 alan eşleme karar belgesine işlenir.
+6. Şirket ID/ad sonuçları ve tarih semantiği doğrulanır.
+7. Authenticated Owner oturumunda `/api/owner/odoo/coverage` açılır.
+8. Şirket `1` ve `25` toplamları kendi durum toplamlarıyla mutabık olmalıdır.
+9. İki şirket toplamı global `6.875` sayısıyla mutabık olmalıdır.
+10. Atanmamış iki kaydın yalnızca güvenli metadata'sı incelenir.
+11. Sonuçlar secret veya ham müşteri verisi içermeyen M2 karar belgesine işlenir.
 
 ## Sonraki dilim
 
-Canlı keşif sonucu doğrulandıktan sonra:
+Coverage ve geçerlilik tarihi örnekleri doğrulandıktan sonra:
 
 - şirket ID → iş birimi eşlemesi PostgreSQL'e alınır,
 - onaylı alan eşleme sözlüğü sürümlenir,
