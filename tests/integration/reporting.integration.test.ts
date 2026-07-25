@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDatabasePool, queryMonthlyQuotationReport } from '@ertip/db';
+import {
+  createDatabasePool,
+  getOdooCurrencyCodeMetaKey,
+  queryMonthlyQuotationReport,
+  upsertOdooCurrencyCodes,
+} from '@ertip/db';
 import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeMonthlyQuotationReportFilters,
@@ -11,7 +16,7 @@ import {
 const connectionString = process.env.DATABASE_URL?.trim();
 
 test(
-  'monthly quotation report reconciles PostgreSQL fixture with scoped filters',
+  'monthly quotation report reconciles PostgreSQL fixture with scoped filters and order currencies',
   { skip: !connectionString },
   async () => {
     assert.ok(connectionString);
@@ -20,10 +25,14 @@ test(
     const customerIds = [910_101, 910_202];
     const salespersonId = 910_010;
     const orderIds = [910_001, 910_002, 910_003, 910_004];
+    const euroCurrencyId = 990_002;
 
     try {
       const { ensureDatabaseSchema } = await import('@ertip/db');
       await ensureDatabaseSchema(pool);
+      await upsertOdooCurrencyCodes(pool, [
+        { odooCurrencyId: euroCurrencyId, code: 'EUR' },
+      ]);
       await pool.query(
         `INSERT INTO sync_runs (
            id, kind, status, source_count, processed_count, reconciles,
@@ -52,8 +61,8 @@ test(
            date_order, validity_date, amount_total, write_date
          ) VALUES
            ($1, $5, 1, $6, $7, 1, 'sale', '2026-07-03 08:00:00+00', '2026-07-05 09:00:00+00', NULL, 1000, now()),
-           ($2, $5, 1, NULL, $7, 1, 'draft', '2026-07-08 08:00:00+00', '2026-07-08 08:00:00+00', NULL, 800, now()),
-           ($3, $5, 1, $6, $8, 1, 'draft', '2026-07-10 08:00:00+00', '2026-07-10 08:00:00+00', '2026-07-12', 500, now()),
+           ($2, $5, 1, NULL, $7, 31, 'draft', '2026-07-08 08:00:00+00', '2026-07-08 08:00:00+00', NULL, 800, now()),
+           ($3, $5, 1, $6, $8, $9, 'draft', '2026-07-10 08:00:00+00', '2026-07-10 08:00:00+00', '2026-07-12', 500, now()),
            ($4, $5, 1, $6, $8, 1, 'sale', '2026-06-09 08:00:00+00', '2026-06-12 08:00:00+00', NULL, 700, now())`,
         [
           ...orderIds,
@@ -61,6 +70,7 @@ test(
           salespersonId,
           customerIds[0],
           customerIds[1],
+          euroCurrencyId,
         ],
       );
       const filters = normalizeMonthlyQuotationReportFilters({
@@ -89,6 +99,9 @@ test(
       assert.equal(result.salespeople.find(({ salespersonId: id }) => id === null)?.metrics.openCount, 1);
       assert.equal(result.customers.length, 2);
       assert.equal(result.details.length, 3);
+      assert.equal(result.details.find(({ id }) => id === orderIds[0])?.currencyCode, 'USD');
+      assert.equal(result.details.find(({ id }) => id === orderIds[1])?.currencyCode, 'TRY');
+      assert.equal(result.details.find(({ id }) => id === orderIds[2])?.currencyCode, 'EUR');
       assert.equal(result.lastSyncAt === null, false);
 
       await assert.rejects(
@@ -103,6 +116,9 @@ test(
       await pool.query('DELETE FROM odoo_customers WHERE odoo_partner_id = ANY($1::int[])', [customerIds]).catch(() => undefined);
       await pool.query('DELETE FROM odoo_salespeople WHERE odoo_user_id = $1', [salespersonId]).catch(() => undefined);
       await pool.query('DELETE FROM sync_runs WHERE id = $1', [runId]).catch(() => undefined);
+      await pool
+        .query('DELETE FROM app_meta WHERE key = $1', [getOdooCurrencyCodeMetaKey(euroCurrencyId)])
+        .catch(() => undefined);
       await pool.end();
     }
   },
