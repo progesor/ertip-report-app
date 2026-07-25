@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 import './globals.css';
+import './m3.css';
 
 export const metadata: Metadata = {
   title: 'Ertip Report App',
