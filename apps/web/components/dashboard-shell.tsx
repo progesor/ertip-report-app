@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { can, type AppRole } from '@ertip/auth';
 
 import { monthlyTrend, salespersonRows } from '@/lib/demo-data';
+import { TenantDiscoveryPanel } from '@/components/tenant-discovery-panel';
 
 const workspaceItems = ['Genel Bakış', 'Raporlar', 'Kaydedilmiş Çıktılar'] as const;
 const ownerItems = [
@@ -238,6 +239,10 @@ export function DashboardShell({
               {connectionCheck.state === 'testing' ? 'Test Ediliyor…' : 'Odoo Bağlantısını Test Et'}
             </button>
           </section>
+        ) : null}
+
+        {canManage && !demoMode ? (
+          <TenantDiscoveryPanel odooConfigured={odooConfigured} />
         ) : null}
 
         <section className="metric-grid" aria-label="Ana performans göstergeleri">
