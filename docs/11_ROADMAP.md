@@ -39,71 +39,70 @@ Hedef: GitHub’dan Coolify staging’e otomatik dağıtılan güvenli iskelet.
 
 ## M2 — Odoo Sync Core
 
+**Durum: Kapalı.**
+
 Hedef: salt okunur, izlenebilir veri senkronizasyonu.
 
-Çıktılar:
+Teslim edilenler:
 
-- Odoo adapter
-- bağlantı testi
-- şirket eşleme
-- customer, salesperson, sale.order sync
-- cursor ve retry
-- sync geçmişi
-- veri kalite temel ekranı
+- Odoo adapter ve bağlantı testi,
+- şirket `1` / `25` eşlemeleri,
+- PostgreSQL tabanlı durable sync kuyruğu,
+- ayrı worker ve source-ID cursor sayfalama,
+- customer, salesperson, currency ve `sale.order` upsert/metadata,
+- retry ve restart recovery,
+- `user_id = false` için **Atanmamış** kovası,
+- yalnızca başarılı tam tarama sonrası stale-row temizliği,
+- şirket/durum/missing-salesperson mutabakatı,
+- Owner queue ve sync geçmişi,
+- web/worker production image ayrımı,
+- PostgreSQL worker leadership lease.
 
-Toplu sync-core dilimi:
+Production kabulü iki ardışık tam senkronizasyonla tamamlandı:
 
-- şirket `1` / `25` eşlemeleri PostgreSQL’e sabitlendi,
-- schema version `2` oluşturuldu,
-- PostgreSQL tabanlı durable sync kuyruğu eklendi,
-- ayrı worker ile source-ID cursor sayfalama uygulandı,
-- customer, salesperson ve `sale.order` upsert’i eklendi,
-- `user_id = false` kayıtları **Atanmamış** olarak korundu,
-- yalnızca başarılı tam tarama sonrası stale-row temizliği eklendi,
-- şirket/durum/missing-salesperson mutabakatı eklendi,
-- Owner queue ve sync-history yüzeyi eklendi,
-- web ve worker production image’ları ayrıldı.
-
-Çıkış kriteri: Seçilen dönem verisi tekrar çalıştırıldığında idempotent ve sayısal olarak doğrulanmış biçimde yerel veritabanına alınır.
-
-Kalan M2 production kanıtı:
-
-1. web ve worker’ın aynı commit ile deploy edilmesi,
-2. ilk tam sync’in `6.875` kayıtla mutabık kapanması,
-3. ikinci tam sync’in aynı sayılarla duplication olmadan kapanması.
+- kaynak `6.875`,
+- işlenen `6.875`,
+- mutabakat `Tam`,
+- ikinci çalışmada duplicate artışı ve stale silme yok.
 
 ## M3 — First Report
 
+**Durum: Kapalı.**
+
 Hedef: Yurt Dışı Aylık Teklif Performansı.
 
-Çıktılar:
+Teslim edilenler:
 
-- rapor kartı
-- ay/tarih filtreleri
-- genel görünüm
-- personel görünümü
-- müşteri görünümü
-- KPI ve grafikler
-- drill-down tablo
-- önceki dönem karşılaştırması, veri uygunsa
+- rapor kartı ve canlı rapor rotası,
+- ay/tarih, iş birimi, personel, müşteri ve durum filtreleri,
+- genel / personel / müşteri görünümleri,
+- KPI ve grafikler,
+- drill-down tablo,
+- önceki dönem karşılaştırması,
+- Owner/Manager kapsam güvenliği,
+- JSON API ve A4 yazdırma görünümü,
+- teklif bazında USD/EUR/TRY gösterimi.
 
-Çıkış kriteri: Manuel doğrulanmış fixture ve seçili gerçek ay ile aynı sonuç.
+Rapor production’da çalışır durumda doğrulandı. İlave görsel/analitik iyileştirmeler MVP sonrasına ertelendi. Ayrıntılı kapanış: `docs/development/M3_EXIT_REPORT.md`.
 
 ## M4 — Exports and Production Readiness
 
-Hedef: toplantıda kullanılabilir çıktı ve production dağıtımı.
+**Durum: Aktif.**
+
+Hedef: toplantıda kullanılabilir çıktı ve kontrollü production operasyonu.
 
 Çıktılar:
 
-- print CSS
-- personel PDF
-- tüm personel PDF
-- XLSX
-- audit log
-- production backup ve restore kontrolü
-- `main` otomatik production deploy
+- print CSS,
+- seçili personel PDF,
+- tüm personel PDF,
+- filtrelenmiş XLSX,
+- export audit log,
+- production backup ve restore kontrolü,
+- web/worker birlikte rollback prosedürü,
+- `main` otomatik production deploy doğrulaması.
 
-Çıkış kriteri: Manager raporu yardım almadan çalıştırıp yazdırabilir; production rollback prosedürü test edilmiştir.
+Çıkış kriteri: Manager raporu yardım almadan çalıştırıp çıktı alabilir; production backup restore ve rollback prosedürü test edilmiştir.
 
 ## M5 — Additional Reports
 
