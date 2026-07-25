@@ -146,6 +146,6 @@ export async function queryMonthlyQuotationReport(
     businessUnits,
     generatedAt: (input.generatedAt ?? new Date()).toISOString(),
     lastSyncAt: lastSyncResult.rows[0]?.completed_at.toISOString() ?? null,
-    detailLimit: input.detailLimit,
+    ...(input.detailLimit === undefined ? {} : { detailLimit: input.detailLimit }),
   });
 }
