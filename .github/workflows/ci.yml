@@ -137,6 +137,7 @@ jobs:
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm build
       - run: docker build --tag ertip-report-app:ci .
+      - run: docker build --file Dockerfile.worker --tag ertip-report-worker:ci .
 
   browser-smoke:
     name: browser_smoke
