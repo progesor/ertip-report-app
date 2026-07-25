@@ -20,8 +20,12 @@ interface PageSearchParams {
   readonly [key: string]: string | string[] | undefined;
 }
 
-function firstValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
+function firstValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
 }
 
 function createFilterInput(searchParams: PageSearchParams): MonthlyQuotationReportFilterInput {
