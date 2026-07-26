@@ -7,6 +7,7 @@ import {
   type MonthlyQuotationSourceRecord,
   type OpenAgingQuotationReportFilters,
   type OpenAgingQuotationReportResult,
+  type OpenAgingQuotationSourceRecord,
 } from '@ertip/reporting';
 
 const salespeople = [
@@ -23,8 +24,10 @@ const customers = [
 ] as const;
 const states = ['sale', 'draft', 'sale', 'cancel', 'draft', 'sale', 'draft'] as const;
 
-function createDemoRecords(): readonly MonthlyQuotationSourceRecord[] {
-  const records: MonthlyQuotationSourceRecord[] = [];
+type DemoQuotationRecord = MonthlyQuotationSourceRecord & OpenAgingQuotationSourceRecord;
+
+function createDemoRecords(): readonly DemoQuotationRecord[] {
+  const records: DemoQuotationRecord[] = [];
   let id = 7_500;
 
   for (let month = 2; month <= 7; month += 1) {
