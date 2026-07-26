@@ -230,6 +230,7 @@ export function DashboardShell({
           </div>
           <div className="actions">
             {demoMode ? <><button type="button">Yazdır</button><button type="button">Excel</button></> : null}
+            <a className="button" href="/reports/personnel-performance">Personel Performansı</a>
             <a className="button primary" href="/reports/monthly-quotation-performance">Raporu Aç</a>
           </div>
         </section>
