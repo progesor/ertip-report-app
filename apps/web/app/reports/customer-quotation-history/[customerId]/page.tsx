@@ -6,6 +6,7 @@ import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeCustomerQuotationHistoryFilters,
   type CustomerQuotationHistoryFilterInput,
+  type CustomerQuotationHistoryReportResult,
 } from '@ertip/reporting';
 
 import { CustomerQuotationHistoryReportView } from '@/components/customer-quotation-history-report-view';
@@ -38,6 +39,30 @@ function createFilterInput(
   };
 }
 
+function resolveCustomerUnavailable<T>(loader: () => T): T {
+  try {
+    return loader();
+  } catch (error) {
+    if (error instanceof Error && error.message === 'REPORT_CUSTOMER_UNAVAILABLE') {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+async function resolveCustomerUnavailableAsync(
+  loader: () => Promise<CustomerQuotationHistoryReportResult>,
+): Promise<CustomerQuotationHistoryReportResult> {
+  try {
+    return await loader();
+  } catch (error) {
+    if (error instanceof Error && error.message === 'REPORT_CUSTOMER_UNAVAILABLE') {
+      notFound();
+    }
+    throw error;
+  }
+}
+
 export default async function CustomerQuotationHistoryPage({
   params,
   searchParams,
@@ -58,19 +83,17 @@ export default async function CustomerQuotationHistoryPage({
       allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
       now: generatedAt,
     });
-    try {
-      const result = getDemoCustomerQuotationHistoryReport(filters, generatedAt);
-      return (
-        <CustomerQuotationHistoryReportView
-          demoMode
-          result={result}
-          user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-        />
-      );
-    } catch (error) {
-      if (error instanceof Error && error.message === 'REPORT_CUSTOMER_UNAVAILABLE') notFound();
-      throw error;
-    }
+    const result = resolveCustomerUnavailable(() =>
+      getDemoCustomerQuotationHistoryReport(filters, generatedAt),
+    );
+
+    return (
+      <CustomerQuotationHistoryReportView
+        demoMode
+        result={result}
+        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
+      />
+    );
   }
 
   const user = await getCurrentSession();
@@ -83,22 +106,20 @@ export default async function CustomerQuotationHistoryPage({
     allowedBusinessUnitIds: user.allowedBusinessUnitIds,
     now: generatedAt,
   });
-  try {
-    const result = await getCustomerQuotationHistoryReport({
+  const result = await resolveCustomerUnavailableAsync(() =>
+    getCustomerQuotationHistoryReport({
       filters,
       allowedBusinessUnitIds: user.allowedBusinessUnitIds,
       generatedAt,
       timelineLimit: 500,
-    });
-    return (
-      <CustomerQuotationHistoryReportView
-        demoMode={false}
-        result={result}
-        user={{ displayName: user.displayName, email: user.email, role: user.role }}
-      />
-    );
-  } catch (error) {
-    if (error instanceof Error && error.message === 'REPORT_CUSTOMER_UNAVAILABLE') notFound();
-    throw error;
-  }
+    }),
+  );
+
+  return (
+    <CustomerQuotationHistoryReportView
+      demoMode={false}
+      result={result}
+      user={{ displayName: user.displayName, email: user.email, role: user.role }}
+    />
+  );
 }
