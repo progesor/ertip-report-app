@@ -51,8 +51,24 @@ function formatDateTime(value: string | null): string {
   return value ? trDateTime.format(new Date(value)) : '—';
 }
 
-function sanitizeFilename(value: string): string {
+function transliterateTurkish(value: string): string {
   return value
+    .replaceAll('Ç', 'C')
+    .replaceAll('ç', 'c')
+    .replaceAll('Ğ', 'G')
+    .replaceAll('ğ', 'g')
+    .replaceAll('İ', 'I')
+    .replaceAll('ı', 'i')
+    .replaceAll('Ö', 'O')
+    .replaceAll('ö', 'o')
+    .replaceAll('Ş', 'S')
+    .replaceAll('ş', 's')
+    .replaceAll('Ü', 'U')
+    .replaceAll('ü', 'u');
+}
+
+function sanitizeFilename(value: string): string {
+  return transliterateTurkish(value)
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/gu, '')
     .replace(/[^a-zA-Z0-9_-]+/gu, '-')
@@ -65,14 +81,20 @@ export function createMonthlyQuotationExportFilename(input: {
   readonly extension: 'xlsx' | 'pdf';
   readonly scope?: MonthlyQuotationPdfScope;
 }): string {
-  const scope = input.scope === 'salesperson' ? 'personel' : input.scope === 'all' ? 'tum-personel' : 'rapor';
-  return [
+  const scope =
+    input.scope === 'salesperson'
+      ? 'personel'
+      : input.scope === 'all'
+        ? 'tum-personel'
+        : 'rapor';
+
+  return `${[
     sanitizeFilename(input.report.businessUnit.displayName),
     'aylik-teklif-performansi',
     input.report.filters.dateFrom,
     input.report.filters.dateTo,
     scope,
-  ].join('_') + `.${input.extension}`;
+  ].join('_')}.${input.extension}`;
 }
 
 function styleHeader(row: ExcelJS.Row): void {
@@ -83,17 +105,24 @@ function styleHeader(row: ExcelJS.Row): void {
 
 function setWorksheetDefaults(sheet: ExcelJS.Worksheet): void {
   sheet.views = [{ state: 'frozen', ySplit: 1 }];
-  sheet.autoFilter = sheet.dimensions;
+  sheet.autoFilter = {
+    from: 'A1',
+    to: sheet.getCell(1, Math.max(1, sheet.columnCount)).address,
+  };
   sheet.getRow(1).height = 24;
 }
 
-function addMetadataSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationReportResult): void {
+function addMetadataSheet(
+  workbook: ExcelJS.Workbook,
+  report: MonthlyQuotationReportResult,
+): void {
   const sheet = workbook.addWorksheet('Özet');
   sheet.columns = [
     { header: 'Alan', key: 'field', width: 34 },
     { header: 'Değer', key: 'value', width: 48 },
   ];
   styleHeader(sheet.getRow(1));
+
   const rows: readonly [string, string | number][] = [
     ['Rapor', report.definition.name],
     ['Rapor sürümü', report.definition.version],
@@ -114,13 +143,19 @@ function addMetadataSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationRe
     ['Teklif verilen müşteri', report.metrics.quotedCustomerCount],
     ['Geçerlilik tarihi boş açık teklif', report.openWithoutValidityCount],
   ];
+
   for (const [field, value] of rows) {
     sheet.addRow({ field, value });
   }
+
   sheet.getColumn('field').font = { bold: true };
+  setWorksheetDefaults(sheet);
 }
 
-function addPersonnelSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationReportResult): void {
+function addPersonnelSheet(
+  workbook: ExcelJS.Workbook,
+  report: MonthlyQuotationReportResult,
+): void {
   const sheet = workbook.addWorksheet('Personel');
   sheet.columns = [
     { header: 'Personel', key: 'name', width: 32 },
@@ -134,6 +169,7 @@ function addPersonnelSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationR
     { header: 'Son teklif', key: 'last', width: 16 },
   ];
   styleHeader(sheet.getRow(1));
+
   for (const row of report.salespeople) {
     sheet.addRow({
       name: row.displayName,
@@ -147,12 +183,16 @@ function addPersonnelSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationR
       last: row.lastQuotationDate ? new Date(row.lastQuotationDate) : null,
     });
   }
+
   sheet.getColumn('conversion').numFmt = '0.0%';
   sheet.getColumn('last').numFmt = 'dd.mm.yyyy';
   setWorksheetDefaults(sheet);
 }
 
-function addCustomerSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationReportResult): void {
+function addCustomerSheet(
+  workbook: ExcelJS.Workbook,
+  report: MonthlyQuotationReportResult,
+): void {
   const sheet = workbook.addWorksheet('Müşteriler');
   sheet.columns = [
     { header: 'Müşteri', key: 'name', width: 42 },
@@ -165,6 +205,7 @@ function addCustomerSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationRe
     { header: 'Son teklif', key: 'last', width: 16 },
   ];
   styleHeader(sheet.getRow(1));
+
   for (const row of report.customers) {
     sheet.addRow({
       name: row.displayName,
@@ -177,12 +218,16 @@ function addCustomerSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationRe
       last: row.lastQuotationDate ? new Date(row.lastQuotationDate) : null,
     });
   }
+
   sheet.getColumn('conversion').numFmt = '0.0%';
   sheet.getColumn('last').numFmt = 'dd.mm.yyyy';
   setWorksheetDefaults(sheet);
 }
 
-function addDetailSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationReportResult): void {
+function addDetailSheet(
+  workbook: ExcelJS.Workbook,
+  report: MonthlyQuotationReportResult,
+): void {
   const sheet = workbook.addWorksheet('Teklif Detayı');
   sheet.columns = [
     { header: 'Odoo ID', key: 'id', width: 12 },
@@ -196,6 +241,7 @@ function addDetailSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationRepo
     { header: 'Para birimi', key: 'currency', width: 14 },
   ];
   styleHeader(sheet.getRow(1));
+
   for (const row of report.details) {
     sheet.addRow({
       id: row.id,
@@ -204,11 +250,14 @@ function addDetailSheet(workbook: ExcelJS.Workbook, report: MonthlyQuotationRepo
       salesperson: row.salespersonName,
       customer: row.customerName,
       status: statusLabels[row.normalizedStatus] ?? row.normalizedStatus,
-      validity: row.validityDate ? new Date(`${row.validityDate}T00:00:00.000Z`) : null,
+      validity: row.validityDate
+        ? new Date(`${row.validityDate}T00:00:00.000Z`)
+        : null,
       amount: Number(row.amountTotal),
       currency: row.currencyCode,
     });
   }
+
   sheet.getColumn('created').numFmt = 'dd.mm.yyyy hh:mm';
   sheet.getColumn('ordered').numFmt = 'dd.mm.yyyy hh:mm';
   sheet.getColumn('validity').numFmt = 'dd.mm.yyyy';
@@ -231,8 +280,7 @@ export async function buildMonthlyQuotationXlsx(
   addCustomerSheet(workbook, report);
   addDetailSheet(workbook, report);
 
-  const output = await workbook.xlsx.writeBuffer();
-  return Buffer.from(output);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 function resolvePdfFont(): string | null {
@@ -243,29 +291,59 @@ function resolvePdfFont(): string | null {
     '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
     '/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf',
   ].filter((value): value is string => Boolean(value));
+
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
-function writePdfTitle(doc: PDFKit.PDFDocument, report: MonthlyQuotationReportResult): void {
-  doc.fontSize(18).fillColor('#182638').text(report.definition.name, { align: 'left' });
+function createPdfTextFormatter(hasUnicodeFont: boolean): (value: string) => string {
+  return hasUnicodeFont
+    ? (value) => value
+    : (value) =>
+        transliterateTurkish(value)
+          .replaceAll('—', '-')
+          .replaceAll('·', '-')
+          .replaceAll('•', '-');
+}
+
+function ensurePdfSpace(doc: PDFKit.PDFDocument, height: number): boolean {
+  if (doc.y + height <= doc.page.height - doc.page.margins.bottom) {
+    return false;
+  }
+
+  doc.addPage();
+  return true;
+}
+
+function writePdfTitle(
+  doc: PDFKit.PDFDocument,
+  report: MonthlyQuotationReportResult,
+  pdfText: (value: string) => string,
+): void {
+  doc.fontSize(18).fillColor('#182638').text(pdfText(report.definition.name));
   doc.moveDown(0.25);
   doc
     .fontSize(9)
     .fillColor('#445466')
     .text(
-      `${report.businessUnit.displayName} · ${report.filters.dateFrom} – ${report.filters.dateTo} (bitiş hariç) · Oluşturulma: ${formatDateTime(report.generatedAt)}`,
+      pdfText(
+        `${report.businessUnit.displayName} · ${report.filters.dateFrom} – ${report.filters.dateTo} (bitiş hariç) · Oluşturulma: ${formatDateTime(report.generatedAt)}`,
+      ),
     );
   doc.moveDown(0.6);
 }
 
-function writeMetricGrid(doc: PDFKit.PDFDocument, report: MonthlyQuotationReportResult): void {
+function writeMetricGrid(
+  doc: PDFKit.PDFDocument,
+  report: MonthlyQuotationReportResult,
+  pdfText: (value: string) => string,
+): void {
   const metrics = [
-    ['Toplam Teklif', report.metrics.quotationCount],
-    ['Gerçekleşen', report.metrics.realizedCount],
-    ['Açık', report.metrics.openCount],
-    ['Gerçekleşmeyen', report.metrics.notRealizedCount],
+    ['Toplam Teklif', trNumber.format(report.metrics.quotationCount)],
+    ['Gerçekleşen', trNumber.format(report.metrics.realizedCount)],
+    ['Açık', trNumber.format(report.metrics.openCount)],
+    ['Gerçekleşmeyen', trNumber.format(report.metrics.notRealizedCount)],
     ['Dönüşüm', formatPercent(report.metrics.conversionRate)],
-    ['Müşteri', report.metrics.quotedCustomerCount],
+    ['Müşteri', trNumber.format(report.metrics.quotedCustomerCount)],
   ] as const;
   const startX = doc.x;
   const startY = doc.y;
@@ -278,33 +356,41 @@ function writeMetricGrid(doc: PDFKit.PDFDocument, report: MonthlyQuotationReport
     const x = startX + column * (width + 10);
     const y = startY + row * (height + 8);
     doc.roundedRect(x, y, width, height, 4).fillAndStroke('#F1F4F7', '#D6DEE6');
-    doc.fillColor('#526577').fontSize(8).text(label, x + 8, y + 7, { width: width - 16 });
+    doc
+      .fillColor('#526577')
+      .fontSize(8)
+      .text(pdfText(label), x + 8, y + 7, { width: width - 16 });
     doc
       .fillColor('#182638')
       .fontSize(15)
-      .text(typeof value === 'number' ? trNumber.format(value) : value, x + 8, y + 20, {
-        width: width - 16,
-      });
+      .text(pdfText(value), x + 8, y + 20, { width: width - 16 });
   });
-  doc.y = startY + 2 * (height + 8) + 4;
+
   doc.x = startX;
+  doc.y = startY + 2 * (height + 8) + 4;
 }
 
-function ensurePdfSpace(doc: PDFKit.PDFDocument, height: number): void {
-  if (doc.y + height > doc.page.height - doc.page.margins.bottom) {
-    doc.addPage();
-  }
-}
-
-function writeTableHeader(doc: PDFKit.PDFDocument, columns: readonly string[], widths: readonly number[]): void {
+function writeTableHeader(
+  doc: PDFKit.PDFDocument,
+  columns: readonly string[],
+  widths: readonly number[],
+  pdfText: (value: string) => string,
+): void {
   const x = doc.x;
   const y = doc.y;
-  doc.rect(x, y, widths.reduce((sum, width) => sum + width, 0), 18).fill('#182638');
+  const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+  doc.rect(x, y, totalWidth, 18).fill('#182638');
   let cursor = x;
+
   columns.forEach((column, index) => {
-    doc.fillColor('#FFFFFF').fontSize(7).text(column, cursor + 3, y + 5, { width: (widths[index] ?? 40) - 6 });
-    cursor += widths[index] ?? 40;
+    const width = widths[index] ?? 40;
+    doc
+      .fillColor('#FFFFFF')
+      .fontSize(7)
+      .text(pdfText(column), cursor + 3, y + 5, { width: width - 6 });
+    cursor += width;
   });
+
   doc.y = y + 20;
 }
 
@@ -312,17 +398,18 @@ function writeDetailRows(
   doc: PDFKit.PDFDocument,
   details: readonly MonthlyQuotationDetailRow[],
   maximumRows: number | null,
+  pdfText: (value: string) => string,
 ): void {
   const selected = maximumRows === null ? details : details.slice(0, maximumRows);
   const widths = [44, 66, 90, 145, 65, 65];
   const headers = ['ID', 'Tarih', 'Personel', 'Müşteri', 'Durum', 'Tutar'];
-  writeTableHeader(doc, headers, widths);
+  writeTableHeader(doc, headers, widths, pdfText);
 
   for (const row of selected) {
-    ensurePdfSpace(doc, 23);
-    if (doc.y < 40) {
-      writeTableHeader(doc, headers, widths);
+    if (ensurePdfSpace(doc, 24)) {
+      writeTableHeader(doc, headers, widths, pdfText);
     }
+
     const x = doc.x;
     const y = doc.y;
     const values = [
@@ -334,32 +421,56 @@ function writeDetailRows(
       `${trDecimal.format(Number(row.amountTotal))} ${row.currencyCode}`,
     ];
     let cursor = x;
+
     values.forEach((value, index) => {
-      doc.fillColor('#182638').fontSize(6.6).text(value, cursor + 3, y + 4, {
-        width: (widths[index] ?? 40) - 6,
-        height: 16,
-        ellipsis: true,
-      });
-      cursor += widths[index] ?? 40;
+      const width = widths[index] ?? 40;
+      doc
+        .fillColor('#182638')
+        .fontSize(6.6)
+        .text(pdfText(value), cursor + 3, y + 4, {
+          width: width - 6,
+          height: 16,
+          ellipsis: true,
+        });
+      cursor += width;
     });
-    doc.moveTo(x, y + 20).lineTo(x + widths.reduce((sum, width) => sum + width, 0), y + 20).strokeColor('#DDE4EA').stroke();
+
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+    doc
+      .moveTo(x, y + 20)
+      .lineTo(x + totalWidth, y + 20)
+      .strokeColor('#DDE4EA')
+      .stroke();
     doc.y = y + 22;
   }
 
   if (maximumRows !== null && details.length > maximumRows) {
-    doc.moveDown(0.4).fontSize(7).fillColor('#526577').text(
-      `Bu toplu PDF’de son ${trNumber.format(maximumRows)} teklif gösterildi; toplam ${trNumber.format(details.length)} kayıt XLSX çıktısında eksiksiz yer alır.`,
-    );
+    doc
+      .moveDown(0.4)
+      .fontSize(7)
+      .fillColor('#526577')
+      .text(
+        pdfText(
+          `Bu toplu PDF’de son ${trNumber.format(maximumRows)} teklif gösterildi; toplam ${trNumber.format(details.length)} kayıt XLSX çıktısında eksiksiz yer alır.`,
+        ),
+      );
   }
 }
 
-function groupTopCustomers(details: readonly MonthlyQuotationDetailRow[]): readonly [string, number][] {
+function groupTopCustomers(
+  details: readonly MonthlyQuotationDetailRow[],
+): readonly [string, number][] {
   const counts = new Map<string, number>();
+
   for (const detail of details) {
     counts.set(detail.customerName, (counts.get(detail.customerName) ?? 0) + 1);
   }
+
   return [...counts.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], 'tr'))
+    .sort(
+      (left, right) =>
+        right[1] - left[1] || left[0].localeCompare(right[0], 'tr'),
+    )
     .slice(0, 10);
 }
 
@@ -368,32 +479,50 @@ function writeSalespersonSection(
   salesperson: MonthlyQuotationSalespersonRow,
   details: readonly MonthlyQuotationDetailRow[],
   includeAllDetails: boolean,
+  pdfText: (value: string) => string,
 ): void {
   doc.addPage();
-  doc.fontSize(16).fillColor('#182638').text(salesperson.displayName);
+  doc.fontSize(16).fillColor('#182638').text(pdfText(salesperson.displayName));
   doc
     .fontSize(8)
     .fillColor('#526577')
-    .text(salesperson.salespersonId === null ? 'Atanmamış personel kovası' : `Odoo kullanıcı #${salesperson.salespersonId}`);
+    .text(
+      pdfText(
+        salesperson.salespersonId === null
+          ? 'Atanmamış personel kovası'
+          : `Odoo kullanıcı #${salesperson.salespersonId}`,
+      ),
+    );
   doc.moveDown(0.6);
-  const summary = [
-    `Teklif: ${trNumber.format(salesperson.metrics.quotationCount)}`,
-    `Gerçekleşen: ${trNumber.format(salesperson.metrics.realizedCount)}`,
-    `Açık: ${trNumber.format(salesperson.metrics.openCount)}`,
-    `Gerçekleşmeyen: ${trNumber.format(salesperson.metrics.notRealizedCount)}`,
-    `Dönüşüm: ${formatPercent(salesperson.metrics.conversionRate)}`,
-    `Müşteri: ${trNumber.format(salesperson.metrics.quotedCustomerCount)}`,
-  ];
-  doc.fontSize(9).fillColor('#182638').text(summary.join('   ·   '));
+  doc
+    .fontSize(9)
+    .fillColor('#182638')
+    .text(
+      pdfText(
+        [
+          `Teklif: ${trNumber.format(salesperson.metrics.quotationCount)}`,
+          `Gerçekleşen: ${trNumber.format(salesperson.metrics.realizedCount)}`,
+          `Açık: ${trNumber.format(salesperson.metrics.openCount)}`,
+          `Gerçekleşmeyen: ${trNumber.format(salesperson.metrics.notRealizedCount)}`,
+          `Dönüşüm: ${formatPercent(salesperson.metrics.conversionRate)}`,
+          `Müşteri: ${trNumber.format(salesperson.metrics.quotedCustomerCount)}`,
+        ].join(' · '),
+      ),
+    );
   doc.moveDown(0.8);
-  doc.fontSize(10).fillColor('#182638').text('En yoğun müşteriler');
+  doc.fontSize(10).fillColor('#182638').text(pdfText('En yoğun müşteriler'));
+
   for (const [customer, count] of groupTopCustomers(details)) {
-    doc.fontSize(7.5).fillColor('#445466').text(`• ${customer}: ${trNumber.format(count)} teklif`);
+    doc
+      .fontSize(7.5)
+      .fillColor('#445466')
+      .text(pdfText(`• ${customer}: ${trNumber.format(count)} teklif`));
   }
+
   doc.moveDown(0.7);
-  doc.fontSize(10).fillColor('#182638').text('Teklif detayı');
+  doc.fontSize(10).fillColor('#182638').text(pdfText('Teklif detayı'));
   doc.moveDown(0.35);
-  writeDetailRows(doc, details, includeAllDetails ? null : 25);
+  writeDetailRows(doc, details, includeAllDetails ? null : 25, pdfText);
 }
 
 function collectPdfBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
@@ -411,7 +540,6 @@ export async function buildMonthlyQuotationPdf(input: {
 }): Promise<Buffer> {
   const doc = new PDFDocument({
     autoFirstPage: true,
-    bufferPages: true,
     layout: 'landscape',
     margin: 32,
     size: 'A4',
@@ -423,19 +551,27 @@ export async function buildMonthlyQuotationPdf(input: {
   });
   const output = collectPdfBuffer(doc);
   const font = resolvePdfFont();
+  const pdfText = createPdfTextFormatter(font !== null);
+
   if (font) {
     doc.font(font);
   }
 
-  writePdfTitle(doc, input.report);
-  writeMetricGrid(doc, input.report);
+  writePdfTitle(doc, input.report, pdfText);
+  writeMetricGrid(doc, input.report, pdfText);
   doc.moveDown(0.4);
-  doc.fontSize(9).fillColor('#182638').text('Personel karşılaştırması');
+  doc.fontSize(9).fillColor('#182638').text(pdfText('Personel karşılaştırması'));
   doc.moveDown(0.3);
+
   const widths = [160, 55, 65, 55, 75, 65];
-  writeTableHeader(doc, ['Personel', 'Teklif', 'Gerç.', 'Açık', 'Gerç. değil', 'Dönüşüm'], widths);
+  const headers = ['Personel', 'Teklif', 'Gerç.', 'Açık', 'Gerç. değil', 'Dönüşüm'];
+  writeTableHeader(doc, headers, widths, pdfText);
+
   for (const row of input.report.salespeople) {
-    ensurePdfSpace(doc, 22);
+    if (ensurePdfSpace(doc, 22)) {
+      writeTableHeader(doc, headers, widths, pdfText);
+    }
+
     const x = doc.x;
     const y = doc.y;
     const values = [
@@ -447,13 +583,18 @@ export async function buildMonthlyQuotationPdf(input: {
       formatPercent(row.metrics.conversionRate),
     ];
     let cursor = x;
+
     values.forEach((value, index) => {
-      doc.fontSize(7).fillColor('#182638').text(value, cursor + 3, y + 4, {
-        width: (widths[index] ?? 40) - 6,
-        height: 15,
-        ellipsis: true,
-      });
-      cursor += widths[index] ?? 40;
+      const width = widths[index] ?? 40;
+      doc
+        .fontSize(7)
+        .fillColor('#182638')
+        .text(pdfText(value), cursor + 3, y + 4, {
+          width: width - 6,
+          height: 15,
+          ellipsis: true,
+        });
+      cursor += width;
     });
     doc.y = y + 20;
   }
@@ -462,26 +603,20 @@ export async function buildMonthlyQuotationPdf(input: {
     input.scope === 'salesperson'
       ? input.report.salespeople.slice(0, 1)
       : input.report.salespeople;
+
   for (const salesperson of selectedSalespeople) {
     const details = input.report.details.filter(
       ({ salespersonId }) => salespersonId === salesperson.salespersonId,
     );
-    writeSalespersonSection(doc, salesperson, details, input.scope === 'salesperson');
+    writeSalespersonSection(
+      doc,
+      salesperson,
+      details,
+      input.scope === 'salesperson',
+      pdfText,
+    );
   }
 
-  const pageRange = doc.bufferedPageRange();
-  for (let index = pageRange.start; index < pageRange.start + pageRange.count; index += 1) {
-    doc.switchToPage(index);
-    doc
-      .fontSize(7)
-      .fillColor('#6B7B8C')
-      .text(
-        `Ertip Report App · ${input.report.definition.code} · Sayfa ${index + 1}/${pageRange.count}`,
-        doc.page.margins.left,
-        doc.page.height - 22,
-        { align: 'right', width: doc.page.width - doc.page.margins.left - doc.page.margins.right },
-      );
-  }
   doc.end();
   return output;
 }
