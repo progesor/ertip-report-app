@@ -120,12 +120,37 @@ Kabul sonucu:
 
 Ayrıntılı kapanış: `docs/development/M4_EXIT_REPORT.md`.
 
-## M5 — Additional Reports — Post-MVP Next
+## M5 — Additional Reports
 
-- Personel Performansı
-- Müşteri Teklif Geçmişi
-- Açık ve Yaşlanan Teklifler
-- Tekliften Siparişe Dönüşüm
+**Durum: Devam ediyor.**
+
+Teslim sırası:
+
+1. Açık ve Yaşlanan Teklifler — tamamlandı,
+2. Müşteri Teklif Geçmişi — tamamlandı,
+3. Personel Performansı — tamamlandı,
+4. Tekliften Siparişe Dönüşüm — aktif geliştirme.
+
+M5 kapanışında kabul edilmiş rapor rotaları, filtreler, metrik sözleşmeleri, JSON API’leri ve çıktı formatları dondurulur. Kaynak para birimi bazlı tutar analizlerinin eski raporlara uygulanması ayrıca #24 ile izlenir.
+
+## M5.5 — Complete Frontend Redesign
+
+**M6 öncesi zorunlu geçiş kapısıdır.**
+
+M5 boyunca dikey rapor dilimleri hızlı ve güvenli biçimde teslim edildiği için mevcut arayüz geçici ekranlar, tekrarlanan report shell’leri ve sabit hızlı erişim yüzeyleri içerir. M6 başlamadan önce uygulamanın tüm frontend’i tek bir profesyonel ürün deneyimi olarak yeniden kurulacaktır.
+
+Kapsam:
+
+- gerçek rapor kütüphanesi ve bilgi mimarisi,
+- ortak uygulama shell’i, aktif navigasyon ve breadcrumb yapısı,
+- Owner ve Manager için ayrıştırılmış deneyim,
+- Owner yönetim ekranlarının özel yönetim rotalarına taşınması,
+- ortak filtre, KPI, grafik, tablo, durum, boş/hata/yükleme ve aksiyon bileşenleri,
+- tutarlı tipografi, boşluk, responsive davranış ve erişilebilirlik,
+- ekran ile print/PDF sunumunun kontrollü ayrımı,
+- tüm mevcut rapor, API, XLSX/PDF ve yetki sözleşmelerinin regresyon korunumu.
+
+Çıkış kriteri: yeniden tasarlanan frontend production’da Owner ve Manager oturumlarıyla kabul edilmeden M6 geliştirmesi başlamaz. Ayrıntılı takip: GitHub issue #22.
 
 ## M6 — Owner Report Configuration
 
