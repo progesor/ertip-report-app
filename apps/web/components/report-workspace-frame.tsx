@@ -34,6 +34,7 @@ export function ReportWorkspaceFrame({
   businessUnit,
   lastSyncAt,
   generatedAt,
+  showEmbeddedHeading = false,
 }: Readonly<{
   children: ReactNode;
   user: ReportWorkspaceUser;
@@ -44,6 +45,7 @@ export function ReportWorkspaceFrame({
   businessUnit: string;
   lastSyncAt: string | null;
   generatedAt: string;
+  showEmbeddedHeading?: boolean;
 }>) {
   return (
     <WorkspaceShell
@@ -79,7 +81,15 @@ export function ReportWorkspaceFrame({
         </div>
       </section>
 
-      <div className="workspace-report-host">{children}</div>
+      <div
+        className={
+          showEmbeddedHeading
+            ? 'workspace-report-host show-embedded-heading'
+            : 'workspace-report-host hide-embedded-heading'
+        }
+      >
+        {children}
+      </div>
     </WorkspaceShell>
   );
 }
