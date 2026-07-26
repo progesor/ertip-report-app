@@ -122,20 +122,23 @@ Ayrıntılı kapanış: `docs/development/M4_EXIT_REPORT.md`.
 
 ## M5 — Additional Reports
 
-**Durum: Devam ediyor.**
+**Durum: Kapalı.**
 
-Teslim sırası:
+26 Temmuz 2026 tarihinde teslim edilenler:
 
-1. Açık ve Yaşlanan Teklifler — tamamlandı,
-2. Müşteri Teklif Geçmişi — tamamlandı,
-3. Personel Performansı — tamamlandı,
-4. Tekliften Siparişe Dönüşüm — aktif geliştirme.
+1. Açık ve Yaşlanan Teklifler,
+2. Müşteri Teklif Geçmişi,
+3. Personel Performansı,
+4. Tekliften Siparişe Dönüşüm,
+5. aylık, müşteri geçmişi ve açık/yaşlanan raporlarına ortak exact-decimal kaynak para birimi tutar analizi.
 
-M5 kapanışında kabul edilmiş rapor rotaları, filtreler, metrik sözleşmeleri, JSON API’leri ve çıktı formatları dondurulur. Kaynak para birimi bazlı tutar analizlerinin eski raporlara uygulanması ayrıca #24 ile izlenir.
+M5 kapanışında kabul edilmiş rapor rotaları, filtreler, adet/durum/tutar metrik sözleşmeleri, JSON API’leri, XLSX/PDF çıktıları, audit güvenliği ve sunucu tarafı iş birimi kapsamı donduruldu. USD, EUR, TRY ve diğer kaynak para birimleri ayrı tutulur; otomatik kur dönüşümü veya karışık para birimi toplamı üretilmez.
+
+Ayrıntılı kapanış: `docs/development/M5_SOURCE_CURRENCY_CLOSEOUT.md`.
 
 ## M5.5 — Complete Frontend Redesign
 
-**M6 öncesi zorunlu geçiş kapısıdır.**
+**Durum: Aktif. M6 öncesi zorunlu geçiş kapısıdır.**
 
 M5 boyunca dikey rapor dilimleri hızlı ve güvenli biçimde teslim edildiği için mevcut arayüz geçici ekranlar, tekrarlanan report shell’leri ve sabit hızlı erişim yüzeyleri içerir. M6 başlamadan önce uygulamanın tüm frontend’i tek bir profesyonel ürün deneyimi olarak yeniden kurulacaktır.
 

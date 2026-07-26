@@ -10,19 +10,19 @@ import { TenantDiscoveryPanel } from '@/components/tenant-discovery-panel';
 import { monthlyTrend, salespersonRows } from '@/lib/demo-data';
 
 const workspaceItems = [
-  'Genel Bakış',
-  'Aylık Teklif Performansı',
-  'Personel Performansı',
-  'Kaydedilmiş Çıktılar',
+  { label: 'Genel Bakış', href: '/' },
+  { label: 'Raporlar', href: '/reports' },
+  { label: 'Aylık Teklif Performansı', href: '/reports/monthly-quotation-performance' },
+  { label: 'Personel Performansı', href: '/reports/personnel-performance' },
 ] as const;
 const ownerItems = [
-  'Rapor Şablonları',
-  'Kullanıcılar',
-  'İş Birimleri',
-  'Odoo Bağlantısı',
-  'Senkronizasyon',
-  'Veri Kalitesi',
-  'Denetim Kayıtları',
+  { label: 'Rapor Şablonları', href: null },
+  { label: 'Kullanıcılar', href: null },
+  { label: 'İş Birimleri', href: null },
+  { label: 'Odoo Bağlantısı', href: null },
+  { label: 'Senkronizasyon', href: null },
+  { label: 'Veri Kalitesi', href: null },
+  { label: 'Denetim Kayıtları', href: '/owner/audit-logs' },
 ] as const;
 
 interface DashboardUser {
@@ -168,29 +168,29 @@ export function DashboardShell({
 
         <nav aria-label="Ana navigasyon">
           <small>Çalışma Alanı</small>
-          {workspaceItems.map((item, index) =>
-            item === 'Aylık Teklif Performansı' ? (
-              <Link className="nav-item" href="/reports/monthly-quotation-performance" key={item}>
-                <i aria-hidden="true">{index + 1}</i>{item}
-              </Link>
-            ) : item === 'Personel Performansı' ? (
-              <Link className="nav-item" href="/reports/personnel-performance" key={item}>
-                <i aria-hidden="true">{index + 1}</i>{item}
-              </Link>
-            ) : (
-              <button className={index === 0 ? 'nav-item active' : 'nav-item'} key={item} type="button">
-                <i aria-hidden="true">{index + 1}</i>{item}
-              </button>
-            ),
-          )}
+          {workspaceItems.map((item, index) => (
+            <Link
+              className={item.href === '/' ? 'nav-item active' : 'nav-item'}
+              href={item.href}
+              key={item.href}
+            >
+              <i aria-hidden="true">{index + 1}</i>{item.label}
+            </Link>
+          ))}
           {canManage ? (
             <>
               <small className="nav-heading">Yönetim</small>
-              {ownerItems.map((item, index) => (
-                <button className="nav-item" key={item} type="button">
-                  <i aria-hidden="true">{String.fromCharCode(65 + index)}</i>{item}
-                </button>
-              ))}
+              {ownerItems.map((item, index) =>
+                item.href ? (
+                  <Link className="nav-item" href={item.href} key={item.label}>
+                    <i aria-hidden="true">{String.fromCharCode(65 + index)}</i>{item.label}
+                  </Link>
+                ) : (
+                  <button className="nav-item" key={item.label} type="button">
+                    <i aria-hidden="true">{String.fromCharCode(65 + index)}</i>{item.label}
+                  </button>
+                ),
+              )}
             </>
           ) : null}
         </nav>
@@ -240,7 +240,8 @@ export function DashboardShell({
           </div>
           <div className="actions">
             {demoMode ? <><button type="button">Yazdır</button><button type="button">Excel</button></> : null}
-            <a className="button primary" href="/reports/monthly-quotation-performance">Raporu Aç</a>
+            <Link className="button" href="/reports">Tüm Raporlar</Link>
+            <Link className="button primary" href="/reports/monthly-quotation-performance">Raporu Aç</Link>
           </div>
         </section>
 
@@ -310,10 +311,10 @@ export function DashboardShell({
         ) : (
           <section className="panel">
             <div className="panel-title">
-              <div><span className="eyebrow">İlk production raporu</span><h3>Canlı raporlama servisi hazır</h3></div>
-              <a className="button primary" href="/reports/monthly-quotation-performance">Yurt Dışı Raporunu Aç</a>
+              <div><span className="eyebrow">Canlı raporlama</span><h3>Yönetim raporları hazır</h3></div>
+              <Link className="button primary" href="/reports">Rapor Kütüphanesini Aç</Link>
             </div>
-            <p>Filtreler, KPI’lar, aylık eğilim, personel/müşteri karşılaştırması ve teklif drill-down tablosu aynı merkezi metrik sözleşmesinden üretilir.</p>
+            <p>Satış, müşteri, ekip ve operasyon raporlarını tek katalogdan açın. Tüm görünümler aynı merkezi metrik ve yetki sözleşmelerini kullanır.</p>
           </section>
         )}
 

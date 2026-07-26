@@ -9,8 +9,8 @@ test('dashboard renders and owner/manager surfaces remain distinct', async ({ pa
   await expect(page.getByText('Toplam Teklif')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Raporu Aç' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Raporlar', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Tüm Raporlar' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Manager' }).click();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toHaveCount(0);
