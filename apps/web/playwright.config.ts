@@ -6,6 +6,7 @@ export default defineConfig({
     'dashboard.smoke.spec.ts',
     'personnel-performance.smoke.spec.ts',
     'quotation-conversion.smoke.spec.ts',
+    'source-currency.smoke.spec.ts',
   ],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
