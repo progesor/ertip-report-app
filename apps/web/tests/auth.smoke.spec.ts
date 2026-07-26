@@ -19,6 +19,7 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
   await expect(page.getByRole('link', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Personel Performansı' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Tekliften Siparişe Dönüşüm' })).toBeVisible();
 
   const statusResponse = await request.get('/api/system/status');
   expect(statusResponse.ok()).toBeTruthy();
@@ -40,6 +41,16 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   );
 
+  const conversionResponse = await page.request.get('/api/reports/quotation-conversion');
+  expect(conversionResponse.ok()).toBeTruthy();
+  const conversionExport = await page.request.get(
+    '/api/reports/quotation-conversion/export?format=xlsx',
+  );
+  expect(conversionExport.ok()).toBeTruthy();
+  expect(conversionExport.headers()['content-type']).toContain(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+
   const auditResponse = await page.request.get('/api/owner/audit-logs');
   expect(auditResponse.ok()).toBeTruthy();
   const audit = (await auditResponse.json()) as {
@@ -57,6 +68,15 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
   expect('customerName' in (exportEvent?.metadata ?? {})).toBe(false);
   expect('amountTotal' in (exportEvent?.metadata ?? {})).toBe(false);
 
+  const conversionExportEvent = audit.events.find(
+    ({ action, entityId }) =>
+      action === 'report.export.xlsx' && entityId === 'quotation-to-order-conversion',
+  );
+  expect(conversionExportEvent).toBeDefined();
+  expect(conversionExportEvent?.metadata.format).toBe('xlsx');
+  expect('customerName' in (conversionExportEvent?.metadata ?? {})).toBe(false);
+  expect('amountTotal' in (conversionExportEvent?.metadata ?? {})).toBe(false);
+
   await page.getByRole('button', { name: 'Çıkış' }).click();
   await expect(page.getByRole('heading', { name: 'Yönetici girişi' })).toBeVisible();
 
@@ -72,6 +92,12 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
     '/api/reports/personnel-performance/10/export?format=xlsx',
   );
   expect(unauthorizedPersonnelExport.status()).toBe(401);
+  const unauthorizedConversion = await page.request.get('/api/reports/quotation-conversion');
+  expect(unauthorizedConversion.status()).toBe(401);
+  const unauthorizedConversionExport = await page.request.get(
+    '/api/reports/quotation-conversion/export?format=xlsx',
+  );
+  expect(unauthorizedConversionExport.status()).toBe(401);
 
   await page.getByLabel('E-posta').fill('unknown@example.com');
   await page.getByLabel('Parola').fill('IncorrectPassword2026');
