@@ -6,9 +6,11 @@ import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeQuotationConversionFilters,
   type QuotationConversionFilterInput,
+  type QuotationConversionReportResult,
 } from '@ertip/reporting';
 
 import { QuotationConversionReportView } from '@/components/quotation-conversion-report-view';
+import { ReportWorkspaceFrame } from '@/components/report-workspace-frame';
 import { getDemoQuotationConversionReport } from '@/lib/quotation-conversion-demo';
 import { getQuotationConversionReport } from '@/lib/quotation-conversion-reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -18,6 +20,12 @@ export const runtime = 'nodejs';
 
 interface PageSearchParams {
   readonly [key: string]: string | string[] | undefined;
+}
+
+interface ReportUser {
+  readonly displayName: string;
+  readonly email: string;
+  readonly role: 'owner' | 'manager';
 }
 
 function firstValue(value: string | string[] | undefined): string | null {
@@ -34,6 +42,27 @@ function createFilterInput(searchParams: PageSearchParams): QuotationConversionF
   };
 }
 
+function reportSurface(
+  result: QuotationConversionReportResult,
+  user: ReportUser,
+  demoMode: boolean,
+) {
+  return (
+    <ReportWorkspaceFrame
+      businessUnit={result.businessUnit.displayName}
+      category="Satış ve Teklifler"
+      demoMode={demoMode}
+      description="Teklif kohortlarının siparişe dönüşme oranını, gerçekleşme süresini, çapraz ay hareketlerini ve kaynak anomalilerini inceleyin."
+      generatedAt={result.generatedAt}
+      lastSyncAt={result.lastSyncAt}
+      title="Tekliften Siparişe Dönüşüm"
+      user={user}
+    >
+      <QuotationConversionReportView demoMode={demoMode} result={result} user={user} />
+    </ReportWorkspaceFrame>
+  );
+}
+
 export default async function QuotationConversionPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<PageSearchParams> }>) {
@@ -47,12 +76,11 @@ export default async function QuotationConversionPage({
       allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
       now: generatedAt,
     });
-    return (
-      <QuotationConversionReportView
-        demoMode
-        result={getDemoQuotationConversionReport(filters, generatedAt)}
-        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-      />
+    const result = getDemoQuotationConversionReport(filters, generatedAt);
+    return reportSurface(
+      result,
+      { displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' },
+      true,
     );
   }
 
@@ -71,11 +99,9 @@ export default async function QuotationConversionPage({
     detailLimit: 500,
   });
 
-  return (
-    <QuotationConversionReportView
-      demoMode={false}
-      result={result}
-      user={{ displayName: user.displayName, email: user.email, role: user.role }}
-    />
+  return reportSurface(
+    result,
+    { displayName: user.displayName, email: user.email, role: user.role },
+    false,
   );
 }
