@@ -1,5 +1,11 @@
 # Roadmap
 
+## MVP status
+
+**Initial MVP completed and closed on 26 July 2026.**
+
+The production application now has authenticated Owner/Manager access, durable read-only Odoo synchronization, the first live management report, mixed-currency display, XLSX/PDF outputs, export audit history and repeatable operational rehearsals.
+
 ## M0 — Discovery and Canon
 
 Hedef: gerçek Odoo veri modelini ve rapor kurallarını doğrulamak.
@@ -87,24 +93,34 @@ Rapor production’da çalışır durumda doğrulandı. İlave görsel/analitik 
 
 ## M4 — Exports and Production Readiness
 
-**Durum: Aktif.**
+**Durum: Kapalı.**
 
 Hedef: toplantıda kullanılabilir çıktı ve kontrollü production operasyonu.
 
-Çıktılar:
+Teslim edilenler:
 
 - print CSS,
 - seçili personel PDF,
 - tüm personel PDF,
 - filtrelenmiş XLSX,
-- export audit log,
-- production backup ve restore kontrolü,
-- web/worker birlikte rollback prosedürü,
-- `main` otomatik production deploy doğrulaması.
+- export audit log ve Owner audit geçmişi,
+- fixed-coordinate A4 PDF renderer ve Türkçe font paketi,
+- izole PostgreSQL backup/restore provası,
+- önceki web/worker sürümünün güncel şemayla rollback uyumluluk provası,
+- belgelenmiş web/worker birlikte rollback prosedürü,
+- `main` otomatik production deploy akışı.
 
-Çıkış kriteri: Manager raporu yardım almadan çalıştırıp çıktı alabilir; production backup restore ve rollback prosedürü test edilmiştir.
+Kabul sonucu:
 
-## M5 — Additional Reports
+- XLSX production kullanımında kabul edildi,
+- yeniden oluşturulan PDF’ler MVP için kabul edildi,
+- backup ve restore imzaları birebir eşleşti,
+- önceki web readiness, Owner oturumu, rapor API’si, worker başlangıcı ve leadership lease güncel şemada geçti,
+- production üzerinde yapay kesinti oluşturulmadı.
+
+Ayrıntılı kapanış: `docs/development/M4_EXIT_REPORT.md`.
+
+## M5 — Additional Reports — Post-MVP Next
 
 - Personel Performansı
 - Müşteri Teklif Geçmişi
