@@ -1,13 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 
 interface AmountRow {
   readonly currencyCode: string;
 }
 
 async function assertXlsx(
-  request: Parameters<Parameters<typeof test>[1]>[0]['request'],
+  request: APIRequestContext,
   path: string,
   filename: string,
 ): Promise<void> {
