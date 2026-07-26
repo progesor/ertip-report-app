@@ -57,6 +57,6 @@ test('creates a PDF artifact and deterministic safe filename', async () => {
   assert.ok(buffer.byteLength > 1_000);
   assert.equal(
     createMonthlyQuotationExportFilename({ report, extension: 'pdf', scope: 'all' }),
-    'yurt-d-s-aylik-teklif-performansi_2026-07-01_2026-08-01_tum-personel.pdf',
+    'yurt-disi_aylik-teklif-performansi_2026-07-01_2026-08-01_tum-personel.pdf',
   );
 });
