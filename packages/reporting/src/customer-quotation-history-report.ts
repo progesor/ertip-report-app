@@ -376,7 +376,11 @@ function createMonthlyFrequency(
     .map(([month, monthRows]) => ({
       month,
       metrics: calculateQuotationMetrics(
-        monthRows.map((row) => ({ state: row.sourceState, validityDate: row.validityDate })),
+        monthRows.map((row) => ({
+          id: row.id,
+          state: row.sourceState,
+          validityDate: row.validityDate,
+        })),
         asOfDate,
       ),
     }));
