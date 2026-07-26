@@ -10,12 +10,10 @@ import {
 
 import { getAppDatabase } from '@/lib/database';
 import { getDemoOpenAgingQuotationReport } from '@/lib/demo-report';
-import {
-  buildOpenAgingQuotationXlsx,
-  createOpenAgingExportFilename,
-} from '@/lib/open-aging-report-export';
+import { createOpenAgingExportFilename } from '@/lib/open-aging-report-export';
 import { getOpenAgingQuotationReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
+import { buildOpenAgingQuotationXlsxWithAmounts } from '@/lib/source-currency-report-export';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -75,7 +73,7 @@ export async function GET(request: Request): Promise<Response> {
           generatedAt,
           detailLimit: 100_000,
         });
-    const buffer = await buildOpenAgingQuotationXlsx(report);
+    const buffer = await buildOpenAgingQuotationXlsxWithAmounts(report);
     const filename = createOpenAgingExportFilename(report);
 
     if (session) {
@@ -98,6 +96,7 @@ export async function GET(request: Request): Promise<Response> {
           format: 'xlsx',
           scope: 'filtered',
           detailCount: report.detailTotalCount,
+          currencyCodes: report.amounts.map(({ currencyCode }) => currencyCode),
         },
       });
     }
