@@ -6,9 +6,12 @@ test('quotation conversion supports cohort timing, filters, JSON and XLSX', asyn
   page,
   request,
 }) => {
-  await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Tekliften Siparişe Dönüşüm' })).toBeVisible();
-  await page.getByRole('link', { name: 'Tekliften Siparişe Dönüşüm' }).click();
+  await page.goto('/reports');
+  const conversionCard = page
+    .getByRole('heading', { name: 'Tekliften Siparişe Dönüşüm', exact: true })
+    .locator('..')
+    .locator('..');
+  await conversionCard.getByRole('link', { name: /Raporu Aç/u }).click();
 
   await expect(page).toHaveURL(/reports\/quotation-conversion/u);
   await expect(page.getByRole('heading', { name: 'Tekliften Siparişe Dönüşüm' })).toBeVisible();
