@@ -24,9 +24,9 @@ test(
     assert.ok(connectionString);
     const pool = createDatabasePool({ connectionString, ssl: false, maxConnections: 2 });
     const runId = randomUUID();
-    const salespersonIds = [920_010, 920_020];
-    const customerIds = [920_101, 920_102, 920_103];
-    const orderIds = [920_001, 920_002, 920_003, 920_004, 920_005, 920_006, 920_007];
+    const salespersonIds = [920_010, 920_020] as const;
+    const customerIds = [920_101, 920_102, 920_103] as const;
+    const orderIds = [920_001, 920_002, 920_003, 920_004, 920_005, 920_006, 920_007] as const;
     const euroCurrencyId = 990_102;
 
     try {
