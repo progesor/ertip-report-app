@@ -9,7 +9,12 @@ import { SyncControlPanel } from '@/components/sync-control-panel';
 import { TenantDiscoveryPanel } from '@/components/tenant-discovery-panel';
 import { monthlyTrend, salespersonRows } from '@/lib/demo-data';
 
-const workspaceItems = ['Genel Bakış', 'Raporlar', 'Kaydedilmiş Çıktılar'] as const;
+const workspaceItems = [
+  'Genel Bakış',
+  'Aylık Teklif Performansı',
+  'Personel Performansı',
+  'Kaydedilmiş Çıktılar',
+] as const;
 const ownerItems = [
   'Rapor Şablonları',
   'Kullanıcılar',
@@ -164,10 +169,14 @@ export function DashboardShell({
         <nav aria-label="Ana navigasyon">
           <small>Çalışma Alanı</small>
           {workspaceItems.map((item, index) =>
-            item === 'Raporlar' ? (
-              <a className="nav-item" href="/reports/monthly-quotation-performance" key={item}>
+            item === 'Aylık Teklif Performansı' ? (
+              <Link className="nav-item" href="/reports/monthly-quotation-performance" key={item}>
                 <i aria-hidden="true">{index + 1}</i>{item}
-              </a>
+              </Link>
+            ) : item === 'Personel Performansı' ? (
+              <Link className="nav-item" href="/reports/personnel-performance" key={item}>
+                <i aria-hidden="true">{index + 1}</i>{item}
+              </Link>
             ) : (
               <button className={index === 0 ? 'nav-item active' : 'nav-item'} key={item} type="button">
                 <i aria-hidden="true">{index + 1}</i>{item}
@@ -231,7 +240,6 @@ export function DashboardShell({
           </div>
           <div className="actions">
             {demoMode ? <><button type="button">Yazdır</button><button type="button">Excel</button></> : null}
-            <Link className="button" href="/reports/personnel-performance">Personel Performansı</Link>
             <a className="button primary" href="/reports/monthly-quotation-performance">Raporu Aç</a>
           </div>
         </section>
