@@ -1,0 +1,306 @@
+name: M4 Operations Rehearsal
+
+on:
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m4-operations-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: 1
+  ROLLBACK_SHA: 71f5dd857cc3994aaa5e66e3b8849a5fd2f2f6c6
+  POSTGRES_IMAGE: postgres:17-alpine
+
+jobs:
+  backup-restore:
+    name: backup_restore
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ertip
+          POSTGRES_PASSWORD: ertip
+          POSTGRES_DB: ertip_report
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ertip -d ertip_report"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ertip:ertip@127.0.0.1:5432/ertip_report
+      DATABASE_SSL: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: package.json
+      - run: pnpm install --no-frozen-lockfile
+      - name: Migrate current schema
+        run: pnpm db:migrate
+      - name: Seed deterministic rehearsal data
+        run: |
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            -v "$GITHUB_WORKSPACE/tooling/m4-operations:/ops:ro" \
+            "$POSTGRES_IMAGE" \
+            psql -X -v ON_ERROR_STOP=1 \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_report \
+              -f /ops/seed.sql
+      - name: Dump, restore and compare
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="$GITHUB_WORKSPACE/test-results/m4-operations"
+          mkdir -p "$OUTPUT_DIR"
+
+          cleanup() {
+            docker run --rm --network host \
+              -e PGPASSWORD=ertip \
+              "$POSTGRES_IMAGE" \
+              dropdb --if-exists --force \
+                -h 127.0.0.1 -p 5432 -U ertip ertip_restore \
+                >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          SOURCE_SIGNATURE="$(docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            -v "$GITHUB_WORKSPACE/tooling/m4-operations:/ops:ro" \
+            "$POSTGRES_IMAGE" \
+            psql -X -qAt -v ON_ERROR_STOP=1 \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_report \
+              -f /ops/signature.sql)"
+          printf '%s\n' "$SOURCE_SIGNATURE" > "$OUTPUT_DIR/source-signature.json"
+
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            -v "$OUTPUT_DIR:/backup" \
+            "$POSTGRES_IMAGE" \
+            pg_dump --format=custom --no-owner --no-privileges \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_report \
+              -f /backup/ertip-report-m4.dump
+
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            "$POSTGRES_IMAGE" \
+            dropdb --if-exists --force \
+              -h 127.0.0.1 -p 5432 -U ertip ertip_restore
+
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            "$POSTGRES_IMAGE" \
+            createdb \
+              -h 127.0.0.1 -p 5432 -U ertip \
+              --template=template0 --encoding=UTF8 ertip_restore
+
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            -v "$OUTPUT_DIR:/backup:ro" \
+            "$POSTGRES_IMAGE" \
+            pg_restore --exit-on-error --no-owner --no-privileges \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_restore \
+              /backup/ertip-report-m4.dump
+
+          RESTORE_SIGNATURE="$(docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            -v "$GITHUB_WORKSPACE/tooling/m4-operations:/ops:ro" \
+            "$POSTGRES_IMAGE" \
+            psql -X -qAt -v ON_ERROR_STOP=1 \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_restore \
+              -f /ops/signature.sql)"
+          printf '%s\n' "$RESTORE_SIGNATURE" > "$OUTPUT_DIR/restore-signature.json"
+
+          if [ "$SOURCE_SIGNATURE" != "$RESTORE_SIGNATURE" ]; then
+            echo 'Source and restored database signatures differ.' >&2
+            diff -u "$OUTPUT_DIR/source-signature.json" "$OUTPUT_DIR/restore-signature.json" || true
+            exit 1
+          fi
+
+          BACKUP_SHA256="$(sha256sum "$OUTPUT_DIR/ertip-report-m4.dump" | awk '{print $1}')"
+          BACKUP_SIZE="$(stat -c '%s' "$OUTPUT_DIR/ertip-report-m4.dump")"
+
+          cat > "$OUTPUT_DIR/backup-restore-evidence.md" <<EOF
+          # M4 Backup/Restore Rehearsal Evidence
+
+          - Source: isolated PostgreSQL 17 CI database
+          - Restore target: fresh database created from template0
+          - Backup format: PostgreSQL custom archive
+          - Backup bytes: $BACKUP_SIZE
+          - SHA-256: $BACKUP_SHA256
+          - Source signature: \`$SOURCE_SIGNATURE\`
+          - Restored signature: \`$RESTORE_SIGNATURE\`
+          - Result: PASS
+          EOF
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m4-backup-restore-evidence
+          path: test-results/m4-operations
+          if-no-files-found: error
+          retention-days: 14
+
+  rollback-compatibility:
+    name: rollback_compatibility
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ertip
+          POSTGRES_PASSWORD: ertip
+          POSTGRES_DB: ertip_report
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ertip -d ertip_report"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ertip:ertip@127.0.0.1:5432/ertip_report
+      DATABASE_SSL: 'false'
+      SESSION_SECRET: m4-rollback-session-secret-value-2026-long
+      OWNER_BOOTSTRAP_TOKEN: m4-rollback-bootstrap-token-value-2026
+      ODOO_BASE_URL: https://ertipmedical.odoo.com
+      ODOO_DATABASE: ertipmedical
+      ODOO_API_KEY: ci-rollback-placeholder-key
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: package.json
+      - run: pnpm install --no-frozen-lockfile
+      - name: Migrate database with current schema
+        run: pnpm db:migrate
+      - name: Build previous verified web and worker images
+        run: |
+          set -euo pipefail
+          ROLLBACK_SOURCE="$RUNNER_TEMP/ertip-report-rollback-source"
+          git worktree add --detach "$ROLLBACK_SOURCE" "$ROLLBACK_SHA"
+          docker build --tag ertip-report-web:rollback "$ROLLBACK_SOURCE"
+          docker build --file "$ROLLBACK_SOURCE/Dockerfile.worker" \
+            --tag ertip-report-worker:rollback "$ROLLBACK_SOURCE"
+      - name: Verify previous web and worker against current schema
+        run: |
+          set -euo pipefail
+          OUTPUT_DIR="$GITHUB_WORKSPACE/test-results/m4-rollback"
+          mkdir -p "$OUTPUT_DIR"
+
+          cleanup() {
+            docker rm -f m4-rollback-web m4-rollback-worker >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name m4-rollback-web --network host \
+            -e PORT=3100 \
+            -e HOSTNAME=127.0.0.1 \
+            -e APP_ENV=test \
+            -e APP_DEMO_MODE=false \
+            -e APP_PUBLIC_URL=http://127.0.0.1:3100 \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e DATABASE_SSL=false \
+            -e SESSION_SECRET="$SESSION_SECRET" \
+            -e OWNER_BOOTSTRAP_TOKEN="$OWNER_BOOTSTRAP_TOKEN" \
+            -e ODOO_BASE_URL="$ODOO_BASE_URL" \
+            -e ODOO_DATABASE="$ODOO_DATABASE" \
+            -e ODOO_API_KEY="$ODOO_API_KEY" \
+            ertip-report-web:rollback
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:3100/api/health/ready \
+              > "$OUTPUT_DIR/web-readiness.json"; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              docker logs m4-rollback-web
+              exit 1
+            fi
+            sleep 2
+          done
+
+          node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(value.status!=='ready') process.exit(1)" \
+            "$OUTPUT_DIR/web-readiness.json"
+
+          curl --fail --silent --show-error \
+            --cookie-jar "$OUTPUT_DIR/cookies.txt" \
+            -H 'Origin: http://127.0.0.1:3100' \
+            -H 'Content-Type: application/json' \
+            --data '{"displayName":"M4 Rehearsal Owner","email":"m4-rollback@ertip.invalid","password":"M4-Rehearsal-Owner-2026!","bootstrapToken":"m4-rollback-bootstrap-token-value-2026"}' \
+            http://127.0.0.1:3100/api/auth/bootstrap \
+            > "$OUTPUT_DIR/bootstrap.json"
+
+          node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(value.ok!==true) process.exit(1)" \
+            "$OUTPUT_DIR/bootstrap.json"
+
+          curl --fail --silent --show-error \
+            --cookie "$OUTPUT_DIR/cookies.txt" \
+            'http://127.0.0.1:3100/api/reports/monthly-quotation-performance?dateFrom=2026-06-01&dateTo=2026-07-01' \
+            > "$OUTPUT_DIR/report.json"
+
+          node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); if(value.ok!==true) process.exit(1)" \
+            "$OUTPUT_DIR/report.json"
+
+          docker run --detach --name m4-rollback-worker --network host \
+            -e APP_ENV=test \
+            -e APP_DEMO_MODE=false \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e DATABASE_SSL=false \
+            -e ODOO_BASE_URL="$ODOO_BASE_URL" \
+            -e ODOO_DATABASE="$ODOO_DATABASE" \
+            -e ODOO_API_KEY="$ODOO_API_KEY" \
+            ertip-report-worker:rollback
+
+          for attempt in $(seq 1 30); do
+            docker logs m4-rollback-worker > "$OUTPUT_DIR/worker.log" 2>&1 || true
+            if grep -q '"event":"worker.started"' "$OUTPUT_DIR/worker.log" \
+              && grep -q '"event":"worker.lease.acquired"' "$OUTPUT_DIR/worker.log"; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              cat "$OUTPUT_DIR/worker.log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          cat > "$OUTPUT_DIR/rollback-evidence.md" <<EOF
+          # M4 Rollback Compatibility Evidence
+
+          - Current schema source: \`${{ github.sha }}\`
+          - Previous verified application commit: \`$ROLLBACK_SHA\`
+          - Previous web readiness on current schema: PASS
+          - Previous Owner bootstrap/session on current schema: PASS
+          - Previous monthly report API on current schema: PASS
+          - Previous worker startup and leadership lease on current schema: PASS
+          - Production services modified: NO
+          - Result: PASS
+          EOF
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m4-rollback-compatibility-evidence
+          path: test-results/m4-rollback
+          if-no-files-found: error
+          retention-days: 14

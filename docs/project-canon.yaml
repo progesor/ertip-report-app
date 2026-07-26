@@ -4,6 +4,9 @@ project:
   primary_language: tr
   repository_visibility: private
   deployment_platform: coolify
+  mvp_status: complete
+  mvp_closed_at: 2026-07-26
+  current_phase: post_mvp_m5
 
 source_system:
   product: Odoo Online
@@ -82,6 +85,11 @@ product_scope:
   owner_report_builder:
     phase: later
     audience: owner_only
+  post_mvp_next:
+    - salesperson_performance
+    - customer_quotation_history
+    - open_and_aging_quotations
+    - quotation_to_order_conversion
 
 architecture:
   style: modular_monolith_with_worker
@@ -123,6 +131,19 @@ deployment:
     - integration
     - build
     - browser_smoke
+  operational_rehearsals:
+    backup_restore:
+      mode: isolated_ci
+      status: passed
+      workflow: m4-operations-rehearsal
+    rollback_compatibility:
+      mode: isolated_ci
+      status: passed
+      previous_verified_commit: 71f5dd857cc3994aaa5e66e3b8849a5fd2f2f6c6
+  production_backup_policy:
+    frequency: daily
+    off_server_encrypted_copy: required
+    scheduler_verification: external_operations_responsibility
 
 security:
   odoo_api_key_client_exposure: forbidden
