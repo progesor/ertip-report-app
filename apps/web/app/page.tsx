@@ -34,7 +34,6 @@ function ReportDashboardEntry() {
         <Link className="button" href="/reports/monthly-quotation-performance">Aylık Teklif Performansı</Link>
         <Link className="button" href="/reports/open-aging-quotations">Açık ve Yaşlanan Teklifler</Link>
         <Link className="button" href="/reports/customer-quotation-history">Müşteri Teklif Geçmişi</Link>
-        <Link className="button" href="/reports/personnel-performance">Personel Performansı</Link>
         <Link className="button primary" href="/reports/quotation-conversion">Tekliften Siparişe Dönüşüm</Link>
       </div>
     </aside>
