@@ -10,6 +10,8 @@ import type {
 
 export type MonthlyQuotationPdfScope = 'all' | 'salesperson';
 
+type TextAlign = 'left' | 'center' | 'right';
+
 interface RegisteredFonts {
   readonly regular: string;
   readonly bold: string;
@@ -19,7 +21,7 @@ interface RegisteredFonts {
 interface TableColumn {
   readonly label: string;
   readonly width: number;
-  readonly align?: 'left' | 'center' | 'right';
+  readonly align: TextAlign;
 }
 
 interface MetricItem {
@@ -149,11 +151,11 @@ function contentWidth(doc: PDFKit.PDFDocument): number {
   return doc.page.width - PAGE_LEFT - PAGE_RIGHT;
 }
 
-function useFont(
+function selectFont(
   doc: PDFKit.PDFDocument,
   fonts: RegisteredFonts,
   size: number,
-  bold = false,
+  bold: boolean,
 ): void {
   doc.font(bold ? fonts.bold : fonts.regular).fontSize(size);
 }
@@ -165,9 +167,9 @@ function fitText(
   value: string,
   width: number,
   size: number,
-  bold = false,
+  bold: boolean,
 ): string {
-  useFont(doc, fonts, size, bold);
+  selectFont(doc, fonts, size, bold);
   const normalized = pdfText(value);
 
   if (doc.widthOfString(normalized) <= width) {
@@ -192,24 +194,19 @@ function drawText(
   x: number,
   y: number,
   width: number,
-  options: {
-    readonly size: number;
-    readonly color?: string;
-    readonly bold?: boolean;
-    readonly align?: 'left' | 'center' | 'right';
-  },
+  size: number,
+  bold = false,
+  color = TEXT_NAVY,
+  align: TextAlign = 'left',
 ): void {
-  const bold = options.bold ?? false;
-  const fitted = fitText(doc, fonts, pdfText, value, width, options.size, bold);
-  useFont(doc, fonts, options.size, bold);
-  doc
-    .fillColor(options.color ?? TEXT_NAVY)
-    .text(fitted, x, y, {
-      width,
-      height: options.size + 5,
-      align: options.align ?? 'left',
-      lineBreak: false,
-    });
+  const fitted = fitText(doc, fonts, pdfText, value, width, size, bold);
+  selectFont(doc, fonts, size, bold);
+  doc.fillColor(color).text(fitted, x, y, {
+    width,
+    height: size + 5,
+    align,
+    lineBreak: false,
+  });
 }
 
 function drawReportHeader(
@@ -221,15 +218,8 @@ function drawReportHeader(
   badge: string,
 ): number {
   const width = contentWidth(doc);
-  drawText(doc, fonts, pdfText, badge.toUpperCase(), PAGE_LEFT, PAGE_TOP, width, {
-    size: 7,
-    bold: true,
-    color: CYAN,
-  });
-  drawText(doc, fonts, pdfText, title, PAGE_LEFT, PAGE_TOP + 14, width, {
-    size: 18,
-    bold: true,
-  });
+  drawText(doc, fonts, pdfText, badge.toUpperCase(), PAGE_LEFT, PAGE_TOP, width, 7, true, CYAN);
+  drawText(doc, fonts, pdfText, title, PAGE_LEFT, PAGE_TOP + 14, width, 18, true);
   drawText(
     doc,
     fonts,
@@ -238,7 +228,9 @@ function drawReportHeader(
     PAGE_LEFT,
     PAGE_TOP + 42,
     width,
-    { size: 8, color: MUTED_TEXT },
+    8,
+    false,
+    MUTED_TEXT,
   );
   doc
     .moveTo(PAGE_LEFT, PAGE_TOP + 62)
@@ -264,14 +256,8 @@ function drawMetricCards(
     const x = PAGE_LEFT + index * (width + gap);
     doc.roundedRect(x, y, width, height, 5).fillAndStroke(PANEL, BORDER);
     doc.rect(x, y, width, 3).fill(metric.accent);
-    drawText(doc, fonts, pdfText, metric.label, x + 9, y + 11, width - 18, {
-      size: 7,
-      color: MUTED_TEXT,
-    });
-    drawText(doc, fonts, pdfText, metric.value, x + 9, y + 27, width - 18, {
-      size: 15,
-      bold: true,
-    });
+    drawText(doc, fonts, pdfText, metric.label, x + 9, y + 11, width - 18, 7, false, MUTED_TEXT);
+    drawText(doc, fonts, pdfText, metric.value, x + 9, y + 27, width - 18, 15, true);
   });
 
   return y + height + 16;
@@ -314,10 +300,7 @@ function drawSectionTitle(
   title: string,
   y: number,
 ): number {
-  drawText(doc, fonts, pdfText, title, PAGE_LEFT, y, contentWidth(doc), {
-    size: 10,
-    bold: true,
-  });
+  drawText(doc, fonts, pdfText, title, PAGE_LEFT, y, contentWidth(doc), 10, true);
   return y + 20;
 }
 
@@ -333,12 +316,19 @@ function drawTableHeader(
   let x = PAGE_LEFT;
 
   for (const column of columns) {
-    drawText(doc, fonts, pdfText, column.label, x + 6, y + 6, column.width - 12, {
-      size: 7,
-      bold: true,
-      color: '#FFFFFF',
-      align: column.align,
-    });
+    drawText(
+      doc,
+      fonts,
+      pdfText,
+      column.label,
+      x + 6,
+      y + 6,
+      column.width - 12,
+      7,
+      true,
+      '#FFFFFF',
+      column.align,
+    );
     x += column.width;
   }
 
@@ -363,10 +353,19 @@ function drawTableRow(
 
   let x = PAGE_LEFT;
   columns.forEach((column, columnIndex) => {
-    drawText(doc, fonts, pdfText, values[columnIndex] ?? '—', x + 6, y + 7, column.width - 12, {
-      size: 7,
-      align: column.align,
-    });
+    drawText(
+      doc,
+      fonts,
+      pdfText,
+      values[columnIndex] ?? '—',
+      x + 6,
+      y + 7,
+      column.width - 12,
+      7,
+      false,
+      TEXT_NAVY,
+      column.align,
+    );
     x += column.width;
   });
   doc
@@ -384,19 +383,12 @@ function drawOverviewPage(
   pdfText: (value: string) => string,
   report: MonthlyQuotationReportResult,
 ): void {
-  let y = drawReportHeader(
-    doc,
-    fonts,
-    pdfText,
-    report,
-    report.definition.name,
-    'Yönetim özeti',
-  );
+  let y = drawReportHeader(doc, fonts, pdfText, report, report.definition.name, 'Yönetim özeti');
   y = drawMetricCards(doc, fonts, pdfText, reportMetrics(report), y);
   y = drawSectionTitle(doc, fonts, pdfText, 'Personel karşılaştırması', y);
 
   const columns: readonly TableColumn[] = [
-    { label: 'Personel', width: 240 },
+    { label: 'Personel', width: 240, align: 'left' },
     { label: 'Teklif', width: 75, align: 'right' },
     { label: 'Gerçekleşen', width: 90, align: 'right' },
     { label: 'Açık', width: 70, align: 'right' },
@@ -426,16 +418,17 @@ function drawOverviewPage(
     );
   });
 
-  const noteY = Math.min(y + 16, doc.page.height - PAGE_BOTTOM - 28);
   drawText(
     doc,
     fonts,
     pdfText,
     'Not: Tutarlar kaynak para biriminde gösterilir; farklı para birimleri tek toplamda birleştirilmez.',
     PAGE_LEFT,
-    noteY,
+    Math.min(y + 16, doc.page.height - PAGE_BOTTOM - 28),
     contentWidth(doc),
-    { size: 7, color: MUTED_TEXT },
+    7,
+    false,
+    MUTED_TEXT,
   );
 }
 
@@ -469,33 +462,38 @@ function drawTopCustomers(
   const columnWidth = (width - 24 - columnGap) / 2;
   const customers = groupTopCustomers(details);
   doc.roundedRect(PAGE_LEFT, y, width, panelHeight, 5).fillAndStroke(PANEL, BORDER);
-  drawText(doc, fonts, pdfText, 'En yoğun müşteriler', PAGE_LEFT + 12, y + 10, width - 24, {
-    size: 9,
-    bold: true,
-  });
+  drawText(doc, fonts, pdfText, 'En yoğun müşteriler', PAGE_LEFT + 12, y + 10, width - 24, 9, true);
 
   if (customers.length === 0) {
-    drawText(doc, fonts, pdfText, 'Bu kapsamda müşteri kaydı yok.', PAGE_LEFT + 12, y + 34, width - 24, {
-      size: 7,
-      color: MUTED_TEXT,
-    });
+    drawText(
+      doc,
+      fonts,
+      pdfText,
+      'Bu kapsamda müşteri kaydı yok.',
+      PAGE_LEFT + 12,
+      y + 34,
+      width - 24,
+      7,
+      false,
+      MUTED_TEXT,
+    );
     return y + panelHeight + 14;
   }
 
   customers.forEach(([customer, count], index) => {
     const column = Math.floor(index / 5);
     const row = index % 5;
-    const x = PAGE_LEFT + 12 + column * (columnWidth + columnGap);
-    const itemY = y + 32 + row * 12;
     drawText(
       doc,
       fonts,
       pdfText,
       `• ${customer} · ${trNumber.format(count)} teklif`,
-      x,
-      itemY,
+      PAGE_LEFT + 12 + column * (columnWidth + columnGap),
+      y + 32 + row * 12,
       columnWidth,
-      { size: 7, color: MUTED_TEXT },
+      7,
+      false,
+      MUTED_TEXT,
     );
   });
 
@@ -509,10 +507,7 @@ function drawPersonContinuationHeader(
   report: MonthlyQuotationReportResult,
   salesperson: MonthlyQuotationSalespersonRow,
 ): number {
-  drawText(doc, fonts, pdfText, salesperson.displayName, PAGE_LEFT, PAGE_TOP, 420, {
-    size: 14,
-    bold: true,
-  });
+  drawText(doc, fonts, pdfText, salesperson.displayName, PAGE_LEFT, PAGE_TOP, 420, 14, true);
   drawText(
     doc,
     fonts,
@@ -521,7 +516,9 @@ function drawPersonContinuationHeader(
     PAGE_LEFT,
     PAGE_TOP + 24,
     contentWidth(doc),
-    { size: 7, color: MUTED_TEXT },
+    7,
+    false,
+    MUTED_TEXT,
   );
   return PAGE_TOP + 48;
 }
@@ -535,13 +532,13 @@ function drawDetailTable(
   details: readonly MonthlyQuotationDetailRow[],
   maximumRows: number | null,
   initialY: number,
-): number {
+): void {
   const selected = maximumRows === null ? details : details.slice(0, maximumRows);
   const columns: readonly TableColumn[] = [
-    { label: 'ID', width: 55 },
-    { label: 'Tarih', width: 82 },
-    { label: 'Müşteri', width: 300 },
-    { label: 'Durum', width: 120 },
+    { label: 'ID', width: 55, align: 'left' },
+    { label: 'Tarih', width: 82, align: 'left' },
+    { label: 'Müşteri', width: 300, align: 'left' },
+    { label: 'Durum', width: 120, align: 'left' },
     { label: 'Tutar', width: 150, align: 'right' },
   ];
   let y = drawTableHeader(doc, fonts, pdfText, columns, initialY);
@@ -583,12 +580,11 @@ function drawDetailTable(
       PAGE_LEFT,
       y + 10,
       contentWidth(doc),
-      { size: 7, color: MUTED_TEXT },
+      7,
+      false,
+      MUTED_TEXT,
     );
-    y += 30;
   }
-
-  return y;
 }
 
 function drawPersonPage(
@@ -623,7 +619,9 @@ function drawPersonPage(
     PAGE_LEFT,
     y - 9,
     contentWidth(doc),
-    { size: 7, color: MUTED_TEXT },
+    7,
+    false,
+    MUTED_TEXT,
   );
   y = drawMetricCards(doc, fonts, pdfText, salespersonMetrics(salesperson), y + 7);
   y = drawTopCustomers(doc, fonts, pdfText, details, y);
@@ -665,7 +663,9 @@ function addPageFooters(
       PAGE_LEFT,
       footerY,
       360,
-      { size: 6.5, color: MUTED_TEXT },
+      6.5,
+      false,
+      MUTED_TEXT,
     );
     drawText(
       doc,
@@ -675,7 +675,10 @@ function addPageFooters(
       doc.page.width - PAGE_RIGHT - 140,
       footerY,
       140,
-      { size: 6.5, color: MUTED_TEXT, align: 'right' },
+      6.5,
+      false,
+      MUTED_TEXT,
+      'right',
     );
   }
 }
