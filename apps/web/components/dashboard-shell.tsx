@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { can, type AppRole } from '@ertip/auth';
@@ -230,6 +231,7 @@ export function DashboardShell({
           </div>
           <div className="actions">
             {demoMode ? <><button type="button">Yazdır</button><button type="button">Excel</button></> : null}
+            <Link className="button" href="/reports/personnel-performance">Personel Performansı</Link>
             <a className="button primary" href="/reports/monthly-quotation-performance">Raporu Aç</a>
           </div>
         </section>

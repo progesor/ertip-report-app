@@ -4,8 +4,11 @@ import {
   queryCustomerQuotationHistoryReport,
   queryMonthlyQuotationReport,
   queryOpenAgingQuotationReport,
+  queryPersonnelPerformanceReport,
   searchCustomerQuotationHistoryDirectory,
+  searchPersonnelPerformanceDirectory,
   type CustomerQuotationHistoryDirectoryRow,
+  type PersonnelPerformanceDirectoryRow,
 } from '@ertip/db';
 import {
   normalizeQuotationStatus,
@@ -17,6 +20,8 @@ import {
   type MonthlyQuotationStatusFilter,
   type OpenAgingQuotationReportFilters,
   type OpenAgingQuotationReportResult,
+  type PersonnelPerformanceFilters,
+  type PersonnelPerformanceReportResult,
 } from '@ertip/reporting';
 import type { QueryResultRow } from 'pg';
 
@@ -135,6 +140,26 @@ export async function getCustomerQuotationHistoryDirectory(input: {
 }): Promise<readonly CustomerQuotationHistoryDirectoryRow[]> {
   await getAppDatabase();
   return searchCustomerQuotationHistoryDirectory(getReportingPool(), input);
+}
+
+export async function getPersonnelPerformanceReport(input: {
+  readonly filters: PersonnelPerformanceFilters;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly generatedAt?: Date;
+  readonly detailLimit?: number;
+}): Promise<PersonnelPerformanceReportResult> {
+  await getAppDatabase();
+  return queryPersonnelPerformanceReport(getReportingPool(), input);
+}
+
+export async function getPersonnelPerformanceDirectory(input: {
+  readonly businessUnitId: string;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly search?: string;
+  readonly limit?: number;
+}): Promise<readonly PersonnelPerformanceDirectoryRow[]> {
+  await getAppDatabase();
+  return searchPersonnelPerformanceDirectory(getReportingPool(), input);
 }
 
 export async function getMonthlyQuotationExportDetails(input: {

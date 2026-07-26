@@ -2,6 +2,7 @@ import {
   buildCustomerQuotationHistoryReport,
   buildMonthlyQuotationReport,
   buildOpenAgingQuotationReport,
+  buildPersonnelPerformanceReport,
   INTERNATIONAL_BUSINESS_UNIT_ID,
   type CustomerQuotationHistoryFilters,
   type CustomerQuotationHistoryReportResult,
@@ -12,6 +13,9 @@ import {
   type OpenAgingQuotationReportFilters,
   type OpenAgingQuotationReportResult,
   type OpenAgingQuotationSourceRecord,
+  type PersonnelPerformanceFilters,
+  type PersonnelPerformanceReportResult,
+  type PersonnelPerformanceSourceRecord,
 } from '@ertip/reporting';
 
 const salespeople = [
@@ -30,7 +34,8 @@ const states = ['sale', 'draft', 'sale', 'cancel', 'draft', 'sale', 'draft'] as 
 
 type DemoQuotationRecord = MonthlyQuotationSourceRecord &
   OpenAgingQuotationSourceRecord &
-  CustomerQuotationHistorySourceRecord;
+  CustomerQuotationHistorySourceRecord &
+  PersonnelPerformanceSourceRecord;
 
 function createDemoRecords(): readonly DemoQuotationRecord[] {
   const records: DemoQuotationRecord[] = [];
@@ -109,6 +114,7 @@ const demoBusinessUnit = {
   displayName: 'Yurt Dışı',
   currencyCode: 'USD',
 } as const;
+const demoSalespeople = salespeople.map(({ id, name }) => ({ id, displayName: name }));
 
 export function getDemoMonthlyQuotationReport(
   filters: MonthlyQuotationReportFilters,
@@ -158,6 +164,30 @@ export function getDemoCustomerQuotationHistoryReport(
   });
 }
 
+export function getDemoPersonnelPerformanceReport(
+  filters: PersonnelPerformanceFilters,
+  generatedAt: Date,
+  detailLimit = 500,
+): PersonnelPerformanceReportResult {
+  const salesperson = demoSalespeople.find(({ id }) => id === filters.salespersonId);
+  if (!salesperson) {
+    throw new Error('REPORT_SALESPERSON_UNAVAILABLE');
+  }
+
+  return buildPersonnelPerformanceReport({
+    records: demoRecords,
+    filters,
+    salesperson,
+    salespeople: demoSalespeople,
+    businessUnit: demoBusinessUnit,
+    businessUnits: [demoBusinessUnit],
+    allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
+    generatedAt: generatedAt.toISOString(),
+    lastSyncAt: '2026-07-25T20:04:00.000Z',
+    detailLimit,
+  });
+}
+
 export function getDemoCustomerQuotationHistoryDirectory(search = '') {
   const query = search.trim().toLocaleLowerCase('tr-TR');
   const groups = new Map<number, DemoQuotationRecord[]>();
@@ -171,6 +201,34 @@ export function getDemoCustomerQuotationHistoryDirectory(search = '') {
       displayName: records[0]?.customerName ?? 'Demo Customer',
       quotationCount: records.length,
       salespersonCount: new Set(records.map(({ salespersonId }) => salespersonId ?? 'unassigned')).size,
+      firstQuotationDate: [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
+        ?.createDate ?? '',
+      lastQuotationDate: [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
+        ?.createDate ?? '',
+    }))
+    .filter(({ displayName }) => !query || displayName.toLocaleLowerCase('tr-TR').includes(query))
+    .sort(
+      (left, right) =>
+        right.lastQuotationDate.localeCompare(left.lastQuotationDate) ||
+        left.displayName.localeCompare(right.displayName, 'tr'),
+    );
+}
+
+export function getDemoPersonnelPerformanceDirectory(search = '') {
+  const query = search.trim().toLocaleLowerCase('tr-TR');
+  const groups = new Map<number, DemoQuotationRecord[]>();
+  for (const record of demoRecords) {
+    if (record.salespersonId === null) continue;
+    groups.set(record.salespersonId, [...(groups.get(record.salespersonId) ?? []), record]);
+  }
+
+  return [...groups.values()]
+    .map((records) => ({
+      salespersonId: records[0]?.salespersonId ?? 0,
+      displayName: records[0]?.salespersonName ?? 'Demo Personel',
+      quotationCount: records.length,
+      realizedCount: records.filter(({ state }) => state === 'sale').length,
+      customerCount: new Set(records.map(({ customerId }) => customerId)).size,
       firstQuotationDate: [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
         ?.createDate ?? '',
       lastQuotationDate: [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
