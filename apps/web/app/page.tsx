@@ -22,7 +22,7 @@ function ReportDashboardEntry() {
         right: 24,
         bottom: 24,
         zIndex: 40,
-        width: 320,
+        width: 340,
         boxShadow: '0 18px 50px rgba(0, 0, 0, 0.35)',
       }}
     >
@@ -33,7 +33,9 @@ function ReportDashboardEntry() {
       <div style={{ display: 'grid', gap: 10 }}>
         <Link className="button" href="/reports/monthly-quotation-performance">Aylık Teklif Performansı</Link>
         <Link className="button" href="/reports/open-aging-quotations">Açık ve Yaşlanan Teklifler</Link>
-        <Link className="button primary" href="/reports/customer-quotation-history">Müşteri Teklif Geçmişi</Link>
+        <Link className="button" href="/reports/customer-quotation-history">Müşteri Teklif Geçmişi</Link>
+        <Link className="button" href="/reports/personnel-performance">Personel Performansı</Link>
+        <Link className="button primary" href="/reports/quotation-conversion">Tekliften Siparişe Dönüşüm</Link>
       </div>
     </aside>
   );
