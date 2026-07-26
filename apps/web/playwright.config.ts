@@ -7,6 +7,7 @@ export default defineConfig({
     'frontend-foundation.smoke.spec.ts',
     'personnel-performance.smoke.spec.ts',
     'quotation-conversion.smoke.spec.ts',
+    'shared-report-shell.smoke.spec.ts',
     'source-currency.smoke.spec.ts',
   ],
   fullyParallel: false,
