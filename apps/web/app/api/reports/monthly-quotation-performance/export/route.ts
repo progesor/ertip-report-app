@@ -6,15 +6,12 @@ import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeMonthlyQuotationReportFilters,
   type MonthlyQuotationReportFilterInput,
+  type MonthlyQuotationReportWithAmounts,
 } from '@ertip/reporting';
 
 import { getAppDatabase } from '@/lib/database';
 import { getDemoMonthlyQuotationReport } from '@/lib/demo-report';
-import {
-  buildMonthlyQuotationXlsx,
-  createMonthlyQuotationExportFilename,
-  withCompleteMonthlyQuotationDetails,
-} from '@/lib/report-export';
+import { createMonthlyQuotationExportFilename } from '@/lib/report-export';
 import {
   buildMonthlyQuotationPdf,
   type MonthlyQuotationPdfScope,
@@ -24,6 +21,7 @@ import {
   getMonthlyQuotationReport,
 } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
+import { buildMonthlyQuotationXlsxWithAmounts } from '@/lib/source-currency-report-export';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -113,10 +111,16 @@ export async function GET(request: Request): Promise<Response> {
           allowedBusinessUnitIds,
           generatedAt,
         });
-    const completeReport = withCompleteMonthlyQuotationDetails(report, details);
+    const completeReport: MonthlyQuotationReportWithAmounts = {
+      ...report,
+      details,
+      detailTotalCount: details.length,
+      detailLimit: details.length,
+      detailsTruncated: false,
+    };
     const buffer =
       format === 'xlsx'
-        ? await buildMonthlyQuotationXlsx(completeReport)
+        ? await buildMonthlyQuotationXlsxWithAmounts(completeReport)
         : await buildMonthlyQuotationPdf({
             report: completeReport,
             scope: pdfScope ?? 'all',
@@ -147,6 +151,7 @@ export async function GET(request: Request): Promise<Response> {
           format,
           scope: format === 'pdf' ? pdfScope : 'filtered',
           detailCount: completeReport.detailTotalCount,
+          currencyCodes: completeReport.amounts.map(({ currencyCode }) => currencyCode),
         },
       });
     }
