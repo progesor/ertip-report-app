@@ -34,6 +34,34 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm build
       - run: pnpm browser:smoke
+      - name: Generate PDF from production image
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker rm -f ertip-pdf-preview >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker build --tag ertip-report-pdf-preview:ci .
+          docker run --rm --entrypoint sh ertip-report-pdf-preview:ci -c \
+            'test -r "$REPORT_PDF_FONT_PATH" && test -r "$REPORT_PDF_FONT_BOLD_PATH"'
+          docker run --detach --name ertip-pdf-preview --publish 3100:3000 \
+            -e APP_ENV=test \
+            -e APP_DEMO_MODE=true \
+            ertip-report-pdf-preview:ci
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3100/api/health/live >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          mkdir -p test-results/report-export-previews
+          curl --fail --silent --show-error \
+            'http://127.0.0.1:3100/api/reports/monthly-quotation-performance/export?format=pdf&scope=all&dateFrom=2026-07-01&dateTo=2026-08-01' \
+            --output test-results/report-export-previews/docker-team.pdf
+          test "$(head -c 5 test-results/report-export-previews/docker-team.pdf)" = '%PDF-'
       - if: always()
         uses: actions/upload-artifact@v4
         with:
