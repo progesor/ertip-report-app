@@ -26,8 +26,13 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 RUN apk add --no-cache font-dejavu \
+  && mkdir -p /app/fonts \
+  && cp /usr/share/fonts/dejavu/DejaVuSans.ttf /app/fonts/DejaVuSans.ttf \
+  && cp /usr/share/fonts/dejavu/DejaVuSans-Bold.ttf /app/fonts/DejaVuSans-Bold.ttf \
   && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
+ENV REPORT_PDF_FONT_PATH=/app/fonts/DejaVuSans.ttf
+ENV REPORT_PDF_FONT_BOLD_PATH=/app/fonts/DejaVuSans-Bold.ttf
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 USER nextjs
