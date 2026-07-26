@@ -10,21 +10,30 @@ import { getCurrentSession } from '@/lib/server-auth';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-function OpenAgingDashboardEntry() {
+function ReportDashboardEntry() {
   return (
-    <a
-      className="button primary"
-      href="/reports/open-aging-quotations"
+    <aside
+      aria-label="Hızlı rapor menüsü"
+      className="panel no-print"
       style={{
         position: 'fixed',
         right: 24,
         bottom: 24,
         zIndex: 40,
+        width: 320,
         boxShadow: '0 18px 50px rgba(0, 0, 0, 0.35)',
       }}
     >
-      Açık ve Yaşlanan Teklifler
-    </a>
+      <div className="panel-title">
+        <div><span className="eyebrow">Hızlı erişim</span><h3>Raporlar</h3></div>
+        <a href="/reports/monthly-quotation-performance">Tümü</a>
+      </div>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <a className="button" href="/reports/monthly-quotation-performance">Aylık Teklif Performansı</a>
+        <a className="button" href="/reports/open-aging-quotations">Açık ve Yaşlanan Teklifler</a>
+        <a className="button primary" href="/reports/customer-quotation-history">Müşteri Teklif Geçmişi</a>
+      </div>
+    </aside>
   );
 }
 
@@ -43,7 +52,7 @@ export default async function HomePage() {
           odooConfigured={runtimeStatus.odoo.configured}
           user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
         />
-        <OpenAgingDashboardEntry />
+        <ReportDashboardEntry />
       </>
     );
   }
@@ -109,7 +118,7 @@ export default async function HomePage() {
           role: currentUser.role,
         }}
       />
-      <OpenAgingDashboardEntry />
+      <ReportDashboardEntry />
     </>
   );
 }
