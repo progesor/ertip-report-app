@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 import type {
   CurrencyAmountMetrics,
   SourceCurrencyPeriodComparison,
@@ -41,47 +39,6 @@ function formatChange(
       ? 'baz yok'
       : `${value.percent > 0 ? '+' : ''}${percentFormatter.format(value.percent * 100)}%`;
   return `${formatMoney(value.absolute, currencyCode)} · ${percent}`;
-}
-
-export function SourceCurrencyAmountDrawer({
-  children,
-  label = 'Tutar Analizi',
-}: Readonly<{ children: ReactNode; label?: string }>) {
-  return (
-    <details
-      className="no-print"
-      data-testid="source-currency-drawer"
-      style={{
-        bottom: 24,
-        position: 'fixed',
-        right: 24,
-        zIndex: 60,
-      }}
-    >
-      <summary
-        className="button primary"
-        style={{ cursor: 'pointer', listStyle: 'none', marginLeft: 'auto', width: 'fit-content' }}
-      >
-        {label}
-      </summary>
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 18,
-          boxShadow: '0 24px 70px rgba(0, 0, 0, 0.48)',
-          marginTop: 10,
-          maxHeight: '78vh',
-          maxWidth: 'calc(100vw - 32px)',
-          overflow: 'auto',
-          padding: 12,
-          width: 'min(1040px, calc(100vw - 48px))',
-        }}
-      >
-        {children}
-      </div>
-    </details>
-  );
 }
 
 export function SourceCurrencyAmountComparisonTable({
