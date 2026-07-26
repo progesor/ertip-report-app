@@ -55,6 +55,7 @@ function reportSurface(
       description="Teklif kohortlarının siparişe dönüşme oranını, gerçekleşme süresini, çapraz ay hareketlerini ve kaynak anomalilerini inceleyin."
       generatedAt={result.generatedAt}
       lastSyncAt={result.lastSyncAt}
+      showEmbeddedHeading
       title="Tekliften Siparişe Dönüşüm"
       user={user}
     >
