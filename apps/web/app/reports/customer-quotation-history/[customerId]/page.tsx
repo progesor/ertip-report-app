@@ -10,10 +10,8 @@ import {
 } from '@ertip/reporting';
 
 import { CustomerQuotationHistoryReportView } from '@/components/customer-quotation-history-report-view';
-import {
-  SourceCurrencyAmountDrawer,
-  SourceCurrencyAmountTable,
-} from '@/components/source-currency-amount-tables';
+import { ReportWorkspaceFrame } from '@/components/report-workspace-frame';
+import { SourceCurrencyAmountTable } from '@/components/source-currency-amount-tables';
 import { getDemoCustomerQuotationHistoryReport } from '@/lib/demo-report';
 import { getCustomerQuotationHistoryReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -23,6 +21,12 @@ export const runtime = 'nodejs';
 
 interface PageSearchParams {
   readonly [key: string]: string | string[] | undefined;
+}
+
+interface ReportUser {
+  readonly displayName: string;
+  readonly email: string;
+  readonly role: 'owner' | 'manager';
 }
 
 function firstValue(value: string | string[] | undefined): string | null {
@@ -69,21 +73,30 @@ async function resolveCustomerUnavailableAsync(
 
 function reportSurface(
   result: CustomerQuotationHistoryReportWithAmounts,
-  user: { readonly displayName: string; readonly email: string; readonly role: 'owner' | 'manager' },
+  user: ReportUser,
   demoMode: boolean,
 ) {
   return (
-    <>
+    <ReportWorkspaceFrame
+      businessUnit={result.businessUnit.displayName}
+      category="Müşteriler"
+      demoMode={demoMode}
+      description="Müşterinin teklif zaman çizelgesini, tekrar sıklığını, satış sonuçlarını ve kaynak para birimi tutarlarını inceleyin."
+      generatedAt={result.generatedAt}
+      lastSyncAt={result.lastSyncAt}
+      title={result.customer.displayName}
+      user={user}
+    >
       <CustomerQuotationHistoryReportView demoMode={demoMode} result={result} user={user} />
-      <SourceCurrencyAmountDrawer label="Müşteri Tutarları">
+      <div className="workspace-inline-amounts">
         <SourceCurrencyAmountTable
           description="Müşterinin seçili dönemdeki teklifleri kaynak para biriminde ayrı gösterilir."
           eyebrow="Müşteri tutar geçmişi"
           rows={result.amounts}
           title="Teklif ve Gerçekleşen Satış Tutarları"
         />
-      </SourceCurrencyAmountDrawer>
-    </>
+      </div>
+    </ReportWorkspaceFrame>
   );
 }
 

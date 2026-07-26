@@ -2,7 +2,7 @@
 
 ## Status
 
-**Active.** M5 closed at commit `0641a63fbe20b5f0eed0949226a56c6060eeb9c1`. M6 remains blocked until this plan is completed and accepted in production for Owner and Manager sessions.
+**Active.** M5 closed at commit `0641a63fbe20b5f0eed0949226a56c6060eeb9c1`. Phase 1 is closed at `344afa7d5a17fccd7f1f8e5526d321ee3a2e3090`. M6 remains blocked until this plan is completed and accepted in production for Owner and Manager sessions.
 
 ## Frozen boundaries
 
@@ -20,16 +20,23 @@ M5.5 may restructure presentation and frontend architecture, but must preserve:
 
 ### Phase 1 — Foundation and information architecture
 
-- establish a canonical report catalog,
-- add `/reports` as the central report library,
-- introduce the shared role-aware workspace shell,
-- replace the floating report shortcut with persistent navigation,
-- correct roadmap state and freeze route inventory,
-- validate all five accepted report links.
+**Status: Closed.**
 
-Exit: the report library is discoverable from the dashboard, works for authenticated and demo sessions, and every direct report route remains valid.
+Delivered:
+
+- canonical report catalog,
+- `/reports` central report library,
+- shared role-aware workspace shell foundation,
+- persistent dashboard navigation,
+- removal of the floating quick-report panel,
+- corrected roadmap state and frozen route inventory,
+- five-report unit and Chromium coverage.
 
 ### Phase 2 — Shared report shell
+
+**Status: Active implementation; acceptance tracked in PR #30.**
+
+Scope:
 
 - extract duplicated report sidebars, headers and user blocks,
 - introduce breadcrumbs, report metadata and shared action areas,
@@ -37,7 +44,18 @@ Exit: the report library is discoverable from the dashboard, works for authentic
 - integrate source-currency amount surfaces into the normal report flow,
 - migrate all five report screens without changing result contracts.
 
-Exit: individual reports no longer render their own application navigation or temporary floating amount drawers.
+Delivered implementation surface:
+
+- shared `ReportWorkspaceFrame` with breadcrumb and report context,
+- all five direct report routes inside the role-aware workspace shell,
+- customer and personnel directory routes inside the same shell,
+- legacy report sidebars and topbars removed from the visible interaction flow,
+- source-currency amount tables moved from fixed drawers into normal report content,
+- one screen heading hierarchy with print titles preserved,
+- sticky desktop filter bars and responsive report-context layout,
+- seven-route Chromium shell coverage.
+
+Exit: individual reports no longer expose separate application navigation or temporary floating amount drawers, and report/API/export regressions remain green.
 
 ### Phase 3 — Shared analytical components
 
@@ -70,14 +88,3 @@ Exit: dashboard/report users are not exposed to technical operations unless thei
 - production deployment and manual acceptance.
 
 Exit: M5.5 is closed only after the deployed frontend is accepted for both roles. M6 can then begin.
-
-## Phase 1 delivered surface
-
-The first implementation branch introduces:
-
-- canonical report catalog data,
-- shared `WorkspaceShell`,
-- centralized `/reports` library,
-- persistent dashboard navigation to the report library,
-- removal of the fixed quick-report panel,
-- report catalog unit tests and Chromium navigation coverage.

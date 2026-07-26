@@ -10,10 +10,8 @@ import {
 } from '@ertip/reporting';
 
 import { MonthlyQuotationReportView } from '@/components/monthly-quotation-report-view';
-import {
-  SourceCurrencyAmountComparisonTable,
-  SourceCurrencyAmountDrawer,
-} from '@/components/source-currency-amount-tables';
+import { ReportWorkspaceFrame } from '@/components/report-workspace-frame';
+import { SourceCurrencyAmountComparisonTable } from '@/components/source-currency-amount-tables';
 import { getDemoMonthlyQuotationReport } from '@/lib/demo-report';
 import { getMonthlyQuotationReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -23,6 +21,12 @@ export const runtime = 'nodejs';
 
 interface PageSearchParams {
   readonly [key: string]: string | string[] | undefined;
+}
+
+interface ReportUser {
+  readonly displayName: string;
+  readonly email: string;
+  readonly role: 'owner' | 'manager';
 }
 
 function firstValue(value: string | string[] | undefined): string | null {
@@ -47,20 +51,29 @@ function createFilterInput(searchParams: PageSearchParams): MonthlyQuotationRepo
 
 function reportSurface(
   result: MonthlyQuotationReportWithAmounts,
-  user: { readonly displayName: string; readonly email: string; readonly role: 'owner' | 'manager' },
+  user: ReportUser,
   demoMode: boolean,
 ) {
   return (
-    <>
+    <ReportWorkspaceFrame
+      businessUnit={result.businessUnit.displayName}
+      category="Satış ve Teklifler"
+      demoMode={demoMode}
+      description="Teklif üretimini, satış sonuçlarını, dönem karşılaştırmasını ve kaynak para birimi tutarlarını birlikte inceleyin."
+      generatedAt={result.generatedAt}
+      lastSyncAt={result.lastSyncAt}
+      title="Aylık Teklif Performansı"
+      user={user}
+    >
       <MonthlyQuotationReportView demoMode={demoMode} result={result} user={user} />
-      <SourceCurrencyAmountDrawer label="Tutar Analizi">
+      <div className="workspace-inline-amounts">
         <SourceCurrencyAmountComparisonTable
           eyebrow="Aylık kaynak para birimi"
           rows={result.amounts}
           title="Teklif ve Gerçekleşen Satış Tutarları"
         />
-      </SourceCurrencyAmountDrawer>
-    </>
+      </div>
+    </ReportWorkspaceFrame>
   );
 }
 
@@ -87,11 +100,7 @@ export default async function MonthlyQuotationPerformancePage({
 
   const user = await getCurrentSession();
 
-  if (!user) {
-    redirect('/');
-  }
-
-  if (!can(user.role, 'reports:read')) {
+  if (!user || !can(user.role, 'reports:read')) {
     redirect('/');
   }
 

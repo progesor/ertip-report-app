@@ -22,17 +22,19 @@ async function assertXlsx(
   await writeFile(`test-results/report-export-previews/${filename}`, body);
 }
 
-test('monthly report exposes separated source-currency amounts on screen, JSON and XLSX', async ({
+test('monthly report exposes separated source-currency amounts inline, in JSON and XLSX', async ({
   page,
   request,
 }) => {
   await page.goto(
     '/reports/monthly-quotation-performance?dateFrom=2026-07-01&dateTo=2026-08-01',
   );
-  await page.getByText('Tutar Analizi', { exact: true }).click();
   await expect(page.getByTestId('source-currency-comparison')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Teklif ve Gerçekleşen Satış Tutarları' })).toBeVisible();
   await expect(page.getByText('USD', { exact: true }).last()).toBeVisible();
   await expect(page.getByText('EUR', { exact: true }).last()).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Ana navigasyon' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Rapor navigasyonu' })).toBeHidden();
 
   const response = await request.get(
     '/api/reports/monthly-quotation-performance?dateFrom=2026-07-01&dateTo=2026-08-01',
@@ -54,14 +56,14 @@ test('monthly report exposes separated source-currency amounts on screen, JSON a
   );
 });
 
-test('open aging and customer history expose operational source-currency amounts', async ({
+test('open aging and customer history expose operational source-currency amounts inline', async ({
   page,
   request,
 }) => {
   await page.goto('/reports/open-aging-quotations');
-  await page.getByText('Açık Tutarlar', { exact: true }).click();
   await expect(page.getByTestId('source-currency-amounts')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Açık ve Yaşlanan Teklif Tutarları' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Ana navigasyon' })).toBeVisible();
 
   const openResponse = await request.get('/api/reports/open-aging-quotations');
   expect(openResponse.ok()).toBeTruthy();
@@ -79,9 +81,9 @@ test('open aging and customer history expose operational source-currency amounts
   await page.goto(
     '/reports/customer-quotation-history/101?dateFrom=2026-02-01&dateTo=2026-08-01',
   );
-  await page.getByText('Müşteri Tutarları', { exact: true }).click();
   await expect(page.getByTestId('source-currency-amounts')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Teklif ve Gerçekleşen Satış Tutarları' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Ana navigasyon' })).toBeVisible();
 
   const customerResponse = await request.get(
     '/api/reports/customer-quotation-history/101?dateFrom=2026-02-01&dateTo=2026-08-01',

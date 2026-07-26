@@ -10,6 +10,7 @@ import {
 } from '@ertip/reporting';
 
 import { PersonnelPerformanceReportView } from '@/components/personnel-performance-report-view';
+import { ReportWorkspaceFrame } from '@/components/report-workspace-frame';
 import { getDemoPersonnelPerformanceReport } from '@/lib/demo-report';
 import { getPersonnelPerformanceReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -19,6 +20,12 @@ export const runtime = 'nodejs';
 
 interface PageSearchParams {
   readonly [key: string]: string | string[] | undefined;
+}
+
+interface ReportUser {
+  readonly displayName: string;
+  readonly email: string;
+  readonly role: 'owner' | 'manager';
 }
 
 function firstValue(value: string | string[] | undefined): string | null {
@@ -63,6 +70,27 @@ async function resolveSalespersonUnavailableAsync(
   }
 }
 
+function reportSurface(
+  result: PersonnelPerformanceReportResult,
+  user: ReportUser,
+  demoMode: boolean,
+) {
+  return (
+    <ReportWorkspaceFrame
+      businessUnit={result.businessUnit.displayName}
+      category="Ekip Performansı"
+      demoMode={demoMode}
+      description="Personelin teklif üretimini, satış dönüşümünü, ekip medyanını, müşteri yoğunluğunu ve tutar performansını inceleyin."
+      generatedAt={result.generatedAt}
+      lastSyncAt={result.lastSyncAt}
+      title={result.salesperson.displayName}
+      user={user}
+    >
+      <PersonnelPerformanceReportView demoMode={demoMode} result={result} user={user} />
+    </ReportWorkspaceFrame>
+  );
+}
+
 export default async function PersonnelPerformancePage({
   params,
   searchParams,
@@ -86,12 +114,10 @@ export default async function PersonnelPerformancePage({
     const result = resolveSalespersonUnavailable(() =>
       getDemoPersonnelPerformanceReport(filters, generatedAt),
     );
-    return (
-      <PersonnelPerformanceReportView
-        demoMode
-        result={result}
-        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-      />
+    return reportSurface(
+      result,
+      { displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' },
+      true,
     );
   }
 
@@ -114,11 +140,9 @@ export default async function PersonnelPerformancePage({
     }),
   );
 
-  return (
-    <PersonnelPerformanceReportView
-      demoMode={false}
-      result={result}
-      user={{ displayName: user.displayName, email: user.email, role: user.role }}
-    />
+  return reportSurface(
+    result,
+    { displayName: user.displayName, email: user.email, role: user.role },
+    false,
   );
 }
