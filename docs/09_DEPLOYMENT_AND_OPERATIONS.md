@@ -132,21 +132,66 @@ API key image katmanına, loga, audit metadata’ya veya browser response’una 
 - Export dosyaları için saklama politikası
 - Coolify platform yedeğinin uygulama veritabanı yedeği yerine geçmediği kabul edilir
 
+Rapor export dosyaları uygulama diski üzerinde saklanmaz; yanıt sırasında bellekte üretilir. Kullanıcının indirdiği dosyalar kurumun normal dosya saklama politikasına tabidir.
+
 ## 9. Gözlemlenebilirlik
 
 - Yapılandırılmış JSON log
 - Request ID
 - Sync run ID
-- Report run ID
+- Report/export request ID
 - Hata takip sistemi, sonraki aşamada
 - Disk, RAM, CPU ve database kullanım alarmı
 
-Sync logları müşteri adı, teklif adı, tutar, API key veya Authorization header içermez.
+Sync logları müşteri adı, teklif adı, tutar, API key veya Authorization header içermez. Export audit metadata’sı da müşteri adı ve tutar içermez.
 
-## 10. Rollback
+## 10. Rollback ilkeleri
 
 - Önceki çalışan web ve worker image/tag’leri saklanır.
 - Web ve worker aynı canonical sürüme birlikte rollback edilir.
 - Uygulama rollback ile database rollback birbirinden ayrılır.
 - Geriye uyumsuz migration production’a tek adımda verilmez.
 - Schema version `2` genişletici olduğundan eski web image’ı yeni tabloları görmezden gelebilir; ancak worker rollback’i sırasında aktif sync run durumu kontrol edilmelidir.
+
+## 11. M4 PostgreSQL backup/restore provası
+
+Prova staging veya geçici izole PostgreSQL üzerinde yapılır; production veritabanının üzerine restore edilmez.
+
+1. Coolify PostgreSQL kaynağından manuel backup oluştur.
+2. Backup zamanı, dosya boyutu ve checksum değerini kaydet.
+3. Yeni geçici PostgreSQL kaynağı oluştur.
+4. Backup’ı geçici kaynağa restore et.
+5. Aşağıdaki sayıları kaynak ve restore edilmiş veritabanında karşılaştır:
+   - `odoo_sale_orders` toplamı,
+   - son başarılı `sync_runs` kaydı,
+   - aktif kullanıcı sayısı,
+   - `audit_logs` toplamı,
+   - schema version.
+6. Restore edilmiş veritabanına bağlanan geçici web instance’ında login ve aylık rapor açılışını doğrula.
+7. Geçici web/DB kaynaklarını kaldır.
+8. Sonucu `docs/development/M4_PRODUCTION_ACCEPTANCE.md` içine tarih ve sayılarla kaydet.
+
+Önerilen salt-okunur doğrulama sorgusu:
+
+```sql
+SELECT
+  (SELECT count(*) FROM odoo_sale_orders) AS sale_orders,
+  (SELECT count(*) FROM users WHERE status = 'active') AS active_users,
+  (SELECT count(*) FROM audit_logs) AS audit_events,
+  (SELECT value FROM app_meta WHERE key = 'schema_version') AS schema_version,
+  (SELECT id::text FROM sync_runs WHERE status = 'succeeded' AND reconciles = true ORDER BY completed_at DESC LIMIT 1) AS latest_sync_run;
+```
+
+## 12. M4 application rollback provası
+
+1. Aktif sync run olmadığını Owner senkronizasyon ekranından doğrula.
+2. Mevcut production commit SHA’sını kaydet.
+3. Bir önceki doğrulanmış web ve worker image/commit SHA’sını belirle.
+4. Önce worker’ı, ardından web’i aynı eski SHA’ya rollback et.
+5. Web readiness, login, rapor ekranı ve worker heartbeat’i doğrula.
+6. Database migration rollback yapılmaz; eski uygulamanın genişletici şemayı tolere ettiği doğrulanır.
+7. Web ve worker’ı tekrar güncel aynı SHA’ya deploy et.
+8. Readiness, worker lease ve son başarılı sync geçmişini doğrula.
+9. Başlangıç/bitiş zamanı ve gözlenen kesintiyi production kabul belgesine kaydet.
+
+Aktif bir `running` sync sırasında worker rollback yapılmaz. Zorunlu acil durumda run ID ve cursor kaydedilir; worker recovery aynı run ID üzerinden izlenir.

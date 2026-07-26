@@ -1,6 +1,6 @@
 {
   "name": "@ertip/web",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,9 @@
     "@ertip/db": "workspace:*",
     "@ertip/odoo-client": "workspace:*",
     "@ertip/reporting": "workspace:*",
+    "exceljs": "4.4.0",
     "next": "16.2.11",
+    "pdfkit": "0.19.1",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   }

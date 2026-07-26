@@ -18,6 +18,9 @@ test('monthly quotation report renders filters, KPI, charts, views and drill-dow
 
   await expect(page.getByRole('heading', { name: 'Aylık Teklif Performansı' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Raporu Çalıştır' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Excel İndir' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tüm Personel PDF' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Seçili Personel PDF' })).toBeDisabled();
   await expect(
     page.locator('.report-kpi-grid').getByText('Dönüşüm Oranı', { exact: true }),
   ).toBeVisible();
@@ -41,6 +44,22 @@ test('monthly quotation report renders filters, KPI, charts, views and drill-dow
   };
   expect(payload.ok).toBeTruthy();
   expect(payload.result.metrics.quotationCount).toBeGreaterThan(0);
+
+  const xlsx = await request.get(
+    '/api/reports/monthly-quotation-performance/export?format=xlsx&dateFrom=2026-07-01&dateTo=2026-08-01',
+  );
+  expect(xlsx.ok()).toBeTruthy();
+  expect(xlsx.headers()['content-type']).toContain(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  expect((await xlsx.body()).subarray(0, 2).toString('ascii')).toBe('PK');
+
+  const pdf = await request.get(
+    '/api/reports/monthly-quotation-performance/export?format=pdf&scope=all&dateFrom=2026-07-01&dateTo=2026-08-01',
+  );
+  expect(pdf.ok()).toBeTruthy();
+  expect(pdf.headers()['content-type']).toContain('application/pdf');
+  expect((await pdf.body()).subarray(0, 5).toString('ascii')).toBe('%PDF-');
 });
 
 test('health and safe status endpoints expose no secret values', async ({ request }) => {

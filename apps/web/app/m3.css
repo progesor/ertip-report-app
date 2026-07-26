@@ -7,3 +7,37 @@
 .report-heading .badges span:nth-child(2)::before {
   content: 'Ana para birimi: ';
 }
+
+.report-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.report-export-actions .button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.audit-page {
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.audit-page .table-wrap code {
+  display: block;
+  max-width: 36rem;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  .report-export-actions {
+    justify-content: flex-start;
+  }
+
+  .audit-page {
+    padding: 1rem;
+  }
+}

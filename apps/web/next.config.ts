@@ -36,6 +36,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(import.meta.dirname, '../..'),
   poweredByHeader: false,
   reactStrictMode: true,
+  serverExternalPackages: ['exceljs', 'pdfkit'],
   transpilePackages: [
     '@ertip/auth',
     '@ertip/config',
