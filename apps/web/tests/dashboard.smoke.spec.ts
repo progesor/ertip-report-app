@@ -9,6 +9,7 @@ test('dashboard renders and owner/manager surfaces remain distinct', async ({ pa
   await expect(page.getByText('Toplam Teklif')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Raporu Aç' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Manager' }).click();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toHaveCount(0);
@@ -86,6 +87,50 @@ test('monthly quotation report renders filters, KPI, charts, views and drill-dow
     writeFile('test-results/report-export-previews/team.pdf', teamPdfBody),
     writeFile('test-results/report-export-previews/person.pdf', personPdfBody),
   ]);
+});
+
+test('open aging report renders filters, distributions, ownership, drill-down and XLSX', async ({ page, request }) => {
+  await page.goto('/reports/open-aging-quotations');
+
+  await expect(page.getByRole('heading', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Raporu Çalıştır' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Excel Takip Çıktısı' })).toBeVisible();
+  await expect(page.getByText('Takipteki Teklif', { exact: true })).toBeVisible();
+  await expect(page.getByText('Süresi Yaklaşan', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Teklif Yaş Kovaları' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Takip Grupları' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Personel Takip Özeti' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Müşteri Takip Özeti' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Teklif Takip Detayı' })).toBeVisible();
+
+  await page.getByLabel('Teklif yaşı').selectOption('90_plus');
+  await page.getByRole('button', { name: 'Raporu Çalıştır' }).click();
+  await expect(page).toHaveURL(/ageBucket=90_plus/u);
+  await expect(page.getByText('90+ gün', { exact: true }).first()).toBeVisible();
+
+  const response = await request.get('/api/reports/open-aging-quotations');
+  expect(response.ok()).toBeTruthy();
+  const payload = (await response.json()) as {
+    readonly ok: boolean;
+    readonly result: {
+      readonly metrics: { readonly trackedCount: number; readonly overdueCount: number };
+      readonly scope: { readonly serverEnforced: boolean };
+    };
+  };
+  expect(payload.ok).toBeTruthy();
+  expect(payload.result.metrics.trackedCount).toBeGreaterThan(0);
+  expect(payload.result.metrics.overdueCount).toBeGreaterThanOrEqual(0);
+  expect(payload.result.scope.serverEnforced).toBe(true);
+
+  const xlsx = await request.get('/api/reports/open-aging-quotations/export?format=xlsx');
+  expect(xlsx.ok()).toBeTruthy();
+  expect(xlsx.headers()['content-type']).toContain(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  const xlsxBody = await xlsx.body();
+  expect(xlsxBody.subarray(0, 2).toString('ascii')).toBe('PK');
+  await mkdir('test-results/report-export-previews', { recursive: true });
+  await writeFile('test-results/report-export-previews/open-aging.xlsx', xlsxBody);
 });
 
 test('health and safe status endpoints expose no secret values', async ({ request }) => {
