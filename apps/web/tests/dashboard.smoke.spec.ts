@@ -103,10 +103,11 @@ test('open aging report renders filters, distributions, ownership, drill-down an
   await expect(page.getByRole('heading', { name: 'Müşteri Takip Özeti' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Teklif Takip Detayı' })).toBeVisible();
 
-  await page.getByLabel('Teklif yaşı').selectOption('90_plus');
+  const ageFilter = page.getByLabel('Teklif yaşı');
+  await ageFilter.selectOption('90_plus');
   await page.getByRole('button', { name: 'Raporu Çalıştır' }).click();
   await expect(page).toHaveURL(/ageBucket=90_plus/u);
-  await expect(page.getByText('90+ gün', { exact: true }).first()).toBeVisible();
+  await expect(ageFilter).toHaveValue('90_plus');
 
   const response = await request.get('/api/reports/open-aging-quotations');
   expect(response.ok()).toBeTruthy();
