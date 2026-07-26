@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './tests',
   testMatch: [
     'dashboard.smoke.spec.ts',
+    'frontend-foundation.smoke.spec.ts',
     'personnel-performance.smoke.spec.ts',
     'quotation-conversion.smoke.spec.ts',
     'source-currency.smoke.spec.ts',
