@@ -18,6 +18,7 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısını Test Et' })).toBeDisabled();
   await expect(page.getByRole('link', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Personel Performansı' })).toBeVisible();
 
   const statusResponse = await request.get('/api/system/status');
   expect(statusResponse.ok()).toBeTruthy();
@@ -65,6 +66,12 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
     '/api/reports/customer-quotation-history/101',
   );
   expect(unauthorizedCustomerHistory.status()).toBe(401);
+  const unauthorizedPersonnel = await page.request.get('/api/reports/personnel-performance/10');
+  expect(unauthorizedPersonnel.status()).toBe(401);
+  const unauthorizedPersonnelExport = await page.request.get(
+    '/api/reports/personnel-performance/10/export?format=xlsx',
+  );
+  expect(unauthorizedPersonnelExport.status()).toBe(401);
 
   await page.getByLabel('E-posta').fill('unknown@example.com');
   await page.getByLabel('Parola').fill('IncorrectPassword2026');
