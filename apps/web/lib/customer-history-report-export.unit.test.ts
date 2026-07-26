@@ -41,7 +41,7 @@ test('creates structured customer history XLSX with complete timeline', async ()
     workbook.worksheets.map(({ name }) => name),
     ['Özet', 'Durum Dağılımı', 'Personel Geçmişi', 'Aylık Frekans', 'Zaman Çizelgesi'],
   );
-  assert.equal(workbook.getWorksheet('Özet')?.getCell('B6').value, report.customer.id);
+  assert.equal(workbook.getWorksheet('Özet')?.getCell('B7').value, report.customer.id);
   assert.equal(workbook.getWorksheet('Zaman Çizelgesi')?.rowCount, report.timelineTotalCount + 1);
   assert.match(createCustomerHistoryExportFilename(report), /atlas-hospital-group_teklif-gecmisi/u);
 });
