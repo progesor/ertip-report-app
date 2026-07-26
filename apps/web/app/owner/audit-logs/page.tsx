@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { can } from '@ertip/auth';
@@ -58,7 +59,7 @@ export default async function AuditLogsPage() {
           <span className="eyebrow">Owner · Güvenli olay geçmişi</span>
           <h1>Denetim Kayıtları</h1>
         </div>
-        <a className="button" href="/">Panele dön</a>
+        <Link className="button" href="/">Panele dön</Link>
       </header>
 
       <section className="panel table-panel">
