@@ -97,6 +97,12 @@
   font-size: clamp(27px, 3.2vw, 43px);
 }
 
+@media screen {
+  .workspace-report-host.hide-embedded-heading .report-heading h2 {
+    display: none;
+  }
+}
+
 .workspace-report-host .report-filters {
   position: sticky;
   top: 8px;
@@ -195,5 +201,9 @@
   .workspace-report-host .report-topbar,
   .workspace-report-host .report-sidebar {
     display: none !important;
+  }
+
+  .workspace-report-host.hide-embedded-heading .report-heading h2 {
+    display: block !important;
   }
 }
