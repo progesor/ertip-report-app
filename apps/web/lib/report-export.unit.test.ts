@@ -10,11 +10,11 @@ import {
 
 import { getDemoMonthlyQuotationReport } from './demo-report.ts';
 import {
-  buildMonthlyQuotationPdf,
   buildMonthlyQuotationXlsx,
   createMonthlyQuotationExportFilename,
   withCompleteMonthlyQuotationDetails,
 } from './report-export.ts';
+import { buildMonthlyQuotationPdf } from './report-pdf.ts';
 
 function createReport() {
   const generatedAt = new Date('2026-07-25T12:00:00.000Z');
@@ -29,6 +29,10 @@ function createReport() {
   });
   const report = getDemoMonthlyQuotationReport(filters, generatedAt);
   return withCompleteMonthlyQuotationDetails(report, report.details);
+}
+
+function countPdfPages(buffer: Buffer): number {
+  return (buffer.toString('latin1').match(/\/Type\s*\/Page\b/gu) ?? []).length;
 }
 
 test('creates a structured XLSX workbook from the canonical report result', async () => {
@@ -49,12 +53,30 @@ test('creates a structured XLSX workbook from the canonical report result', asyn
   );
 });
 
-test('creates a PDF artifact and deterministic safe filename', async () => {
+test('creates distinct team and selected-person PDF documents', async () => {
   const report = createReport();
-  const buffer = await buildMonthlyQuotationPdf({ report, scope: 'all' });
+  const teamPdf = await buildMonthlyQuotationPdf({ report, scope: 'all' });
+  const salesperson = report.salespeople[0];
+  assert.ok(salesperson);
+  const selectedReport = {
+    ...report,
+    filters: { ...report.filters, salespersonId: salesperson.salespersonId },
+    salespeople: [salesperson],
+    details: report.details.filter(
+      ({ salespersonId }) => salespersonId === salesperson.salespersonId,
+    ),
+  };
+  const personPdf = await buildMonthlyQuotationPdf({
+    report: selectedReport,
+    scope: 'salesperson',
+  });
 
-  assert.equal(buffer.subarray(0, 5).toString('ascii'), '%PDF-');
-  assert.ok(buffer.byteLength > 1_000);
+  assert.equal(teamPdf.subarray(0, 5).toString('ascii'), '%PDF-');
+  assert.equal(personPdf.subarray(0, 5).toString('ascii'), '%PDF-');
+  assert.ok(teamPdf.byteLength > 1_000);
+  assert.ok(personPdf.byteLength > 1_000);
+  assert.ok(countPdfPages(teamPdf) > countPdfPages(personPdf));
+  assert.ok(countPdfPages(personPdf) >= 1);
   assert.equal(
     createMonthlyQuotationExportFilename({ report, extension: 'pdf', scope: 'all' }),
     'yurt-disi_aylik-teklif-performansi_2026-07-01_2026-08-01_tum-personel.pdf',
