@@ -1,0 +1,91 @@
+import { redirect } from 'next/navigation';
+
+import { can } from '@ertip/auth';
+import { readRuntimeConfig } from '@ertip/config';
+import {
+  INTERNATIONAL_BUSINESS_UNIT_ID,
+  normalizeOpenAgingQuotationReportFilters,
+  type OpenAgingQuotationReportFilterInput,
+} from '@ertip/reporting';
+
+import { OpenAgingQuotationReportView } from '@/components/open-aging-quotation-report-view';
+import { getDemoOpenAgingQuotationReport } from '@/lib/demo-report';
+import { getOpenAgingQuotationReport } from '@/lib/reporting';
+import { getCurrentSession } from '@/lib/server-auth';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+interface PageSearchParams {
+  readonly [key: string]: string | string[] | undefined;
+}
+
+function firstValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+function createFilterInput(searchParams: PageSearchParams): OpenAgingQuotationReportFilterInput {
+  return {
+    businessUnitId: firstValue(searchParams.businessUnitId),
+    salespersonId: firstValue(searchParams.salespersonId),
+    customerId: firstValue(searchParams.customerId),
+    ageBucket: firstValue(searchParams.ageBucket),
+    validityGroup: firstValue(searchParams.validityGroup),
+  };
+}
+
+export default async function OpenAgingQuotationsPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<PageSearchParams> }>) {
+  const runtime = readRuntimeConfig();
+  const resolvedSearchParams = await searchParams;
+  const generatedAt = new Date();
+
+  if (runtime.demoMode) {
+    const filters = normalizeOpenAgingQuotationReportFilters({
+      request: createFilterInput(resolvedSearchParams),
+      allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
+    });
+    const result = getDemoOpenAgingQuotationReport(filters, generatedAt);
+    return (
+      <OpenAgingQuotationReportView
+        demoMode
+        result={result}
+        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
+      />
+    );
+  }
+
+  const user = await getCurrentSession();
+
+  if (!user) {
+    redirect('/');
+  }
+
+  if (!can(user.role, 'reports:read')) {
+    redirect('/');
+  }
+
+  const filters = normalizeOpenAgingQuotationReportFilters({
+    request: createFilterInput(resolvedSearchParams),
+    allowedBusinessUnitIds: user.allowedBusinessUnitIds,
+  });
+  const result = await getOpenAgingQuotationReport({
+    filters,
+    allowedBusinessUnitIds: user.allowedBusinessUnitIds,
+    generatedAt,
+    detailLimit: 500,
+  });
+
+  return (
+    <OpenAgingQuotationReportView
+      demoMode={false}
+      result={result}
+      user={{ displayName: user.displayName, email: user.email, role: user.role }}
+    />
+  );
+}

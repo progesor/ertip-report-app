@@ -1,9 +1,13 @@
 import {
   buildMonthlyQuotationReport,
+  buildOpenAgingQuotationReport,
   INTERNATIONAL_BUSINESS_UNIT_ID,
   type MonthlyQuotationReportFilters,
   type MonthlyQuotationReportResult,
   type MonthlyQuotationSourceRecord,
+  type OpenAgingQuotationReportFilters,
+  type OpenAgingQuotationReportResult,
+  type OpenAgingQuotationSourceRecord,
 } from '@ertip/reporting';
 
 const salespeople = [
@@ -20,8 +24,10 @@ const customers = [
 ] as const;
 const states = ['sale', 'draft', 'sale', 'cancel', 'draft', 'sale', 'draft'] as const;
 
-function createDemoRecords(): readonly MonthlyQuotationSourceRecord[] {
-  const records: MonthlyQuotationSourceRecord[] = [];
+type DemoQuotationRecord = MonthlyQuotationSourceRecord & OpenAgingQuotationSourceRecord;
+
+function createDemoRecords(): readonly DemoQuotationRecord[] {
+  const records: DemoQuotationRecord[] = [];
   let id = 7_500;
 
   for (let month = 2; month <= 7; month += 1) {
@@ -53,16 +59,50 @@ function createDemoRecords(): readonly MonthlyQuotationSourceRecord[] {
         createDate,
         dateOrder: createDate,
         amountTotal: String(750 + index * 125),
-        currencyCode: 'USD',
+        currencyCode: index % 11 === 0 ? 'EUR' : index % 13 === 0 ? 'TRY' : 'USD',
       });
       id += 1;
     }
   }
 
+  records.push(
+    {
+      id: 8_901,
+      state: 'sent',
+      validityDate: '2026-08-18',
+      customerId: 101,
+      customerName: 'Atlas Hospital Group',
+      salespersonId: 10,
+      salespersonName: 'Ecem Aygül',
+      createDate: '2026-07-21T08:00:00.000Z',
+      dateOrder: '2026-07-21T08:00:00.000Z',
+      amountTotal: '4200',
+      currencyCode: 'EUR',
+    },
+    {
+      id: 8_902,
+      state: 'draft',
+      validityDate: null,
+      customerId: 104,
+      customerName: 'Nova Clinic Network',
+      salespersonId: null,
+      salespersonName: 'Atanmamış',
+      createDate: '2026-04-10T08:00:00.000Z',
+      dateOrder: '2026-04-10T08:00:00.000Z',
+      amountTotal: '97500',
+      currencyCode: 'TRY',
+    },
+  );
+
   return records;
 }
 
 const demoRecords = createDemoRecords();
+const demoBusinessUnit = {
+  id: INTERNATIONAL_BUSINESS_UNIT_ID,
+  displayName: 'Yurt Dışı',
+  currencyCode: 'USD',
+} as const;
 
 export function getDemoMonthlyQuotationReport(
   filters: MonthlyQuotationReportFilters,
@@ -71,19 +111,26 @@ export function getDemoMonthlyQuotationReport(
   return buildMonthlyQuotationReport({
     records: demoRecords,
     filters,
-    businessUnit: {
-      id: INTERNATIONAL_BUSINESS_UNIT_ID,
-      displayName: 'Yurt Dışı',
-      currencyCode: 'USD',
-    },
-    businessUnits: [
-      {
-        id: INTERNATIONAL_BUSINESS_UNIT_ID,
-        displayName: 'Yurt Dışı',
-        currencyCode: 'USD',
-      },
-    ],
+    businessUnit: demoBusinessUnit,
+    businessUnits: [demoBusinessUnit],
     generatedAt: generatedAt.toISOString(),
     lastSyncAt: '2026-07-25T20:04:00.000Z',
+  });
+}
+
+export function getDemoOpenAgingQuotationReport(
+  filters: OpenAgingQuotationReportFilters,
+  generatedAt: Date,
+  detailLimit = 500,
+): OpenAgingQuotationReportResult {
+  return buildOpenAgingQuotationReport({
+    records: demoRecords,
+    filters,
+    businessUnit: demoBusinessUnit,
+    businessUnits: [demoBusinessUnit],
+    allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
+    generatedAt: generatedAt.toISOString(),
+    lastSyncAt: '2026-07-25T20:04:00.000Z',
+    detailLimit,
   });
 }

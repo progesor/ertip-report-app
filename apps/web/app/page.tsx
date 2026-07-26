@@ -10,6 +10,24 @@ import { getCurrentSession } from '@/lib/server-auth';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+function OpenAgingDashboardEntry() {
+  return (
+    <a
+      className="button primary"
+      href="/reports/open-aging-quotations"
+      style={{
+        position: 'fixed',
+        right: 24,
+        bottom: 24,
+        zIndex: 40,
+        boxShadow: '0 18px 50px rgba(0, 0, 0, 0.35)',
+      }}
+    >
+      Açık ve Yaşlanan Teklifler
+    </a>
+  );
+}
+
 export default async function HomePage() {
   const runtimeConfig = readRuntimeConfig();
   const runtimeStatus = getSafeRuntimeStatus(runtimeConfig);
@@ -17,13 +35,16 @@ export default async function HomePage() {
 
   if (runtimeStatus.demoMode) {
     return (
-      <DashboardShell
-        demoMode
-        latestOdooCheck={null}
-        nowIso={nowIso}
-        odooConfigured={runtimeStatus.odoo.configured}
-        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-      />
+      <>
+        <DashboardShell
+          demoMode
+          latestOdooCheck={null}
+          nowIso={nowIso}
+          odooConfigured={runtimeStatus.odoo.configured}
+          user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
+        />
+        <OpenAgingDashboardEntry />
+      </>
     );
   }
 
@@ -72,20 +93,23 @@ export default async function HomePage() {
     currentUser.role === 'owner' ? await database.getLatestOdooConnectionCheck() : null;
 
   return (
-    <DashboardShell
-      demoMode={false}
-      latestOdooCheck={
-        latestOdooCheck
-          ? { ...latestOdooCheck, checkedAt: latestOdooCheck.checkedAt.toISOString() }
-          : null
-      }
-      nowIso={nowIso}
-      odooConfigured={runtimeStatus.odoo.configured}
-      user={{
-        displayName: currentUser.displayName,
-        email: currentUser.email,
-        role: currentUser.role,
-      }}
-    />
+    <>
+      <DashboardShell
+        demoMode={false}
+        latestOdooCheck={
+          latestOdooCheck
+            ? { ...latestOdooCheck, checkedAt: latestOdooCheck.checkedAt.toISOString() }
+            : null
+        }
+        nowIso={nowIso}
+        odooConfigured={runtimeStatus.odoo.configured}
+        user={{
+          displayName: currentUser.displayName,
+          email: currentUser.email,
+          role: currentUser.role,
+        }}
+      />
+      <OpenAgingDashboardEntry />
+    </>
   );
 }

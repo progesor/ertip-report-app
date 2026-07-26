@@ -1,11 +1,17 @@
 import { readRuntimeConfig } from '@ertip/config';
-import { createDatabasePool, queryMonthlyQuotationReport } from '@ertip/db';
+import {
+  createDatabasePool,
+  queryMonthlyQuotationReport,
+  queryOpenAgingQuotationReport,
+} from '@ertip/db';
 import {
   normalizeQuotationStatus,
   type MonthlyQuotationDetailRow,
   type MonthlyQuotationReportFilters,
   type MonthlyQuotationReportResult,
   type MonthlyQuotationStatusFilter,
+  type OpenAgingQuotationReportFilters,
+  type OpenAgingQuotationReportResult,
 } from '@ertip/reporting';
 import type { QueryResultRow } from 'pg';
 
@@ -94,6 +100,16 @@ export async function getMonthlyQuotationReport(input: {
 }): Promise<MonthlyQuotationReportResult> {
   await getAppDatabase();
   return queryMonthlyQuotationReport(getReportingPool(), input);
+}
+
+export async function getOpenAgingQuotationReport(input: {
+  readonly filters: OpenAgingQuotationReportFilters;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly generatedAt?: Date;
+  readonly detailLimit?: number;
+}): Promise<OpenAgingQuotationReportResult> {
+  await getAppDatabase();
+  return queryOpenAgingQuotationReport(getReportingPool(), input);
 }
 
 export async function getMonthlyQuotationExportDetails(input: {
