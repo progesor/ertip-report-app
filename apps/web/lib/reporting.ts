@@ -162,7 +162,6 @@ export async function getMonthlyQuotationExportDetails(input: {
       {
         state: row.source_state,
         validityDate: toDateOnly(row.validity_date),
-        customerId: row.odoo_partner_id,
       },
       statusAsOf,
     );
