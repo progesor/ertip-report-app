@@ -1,9 +1,13 @@
 import type { Pool, QueryResultRow } from 'pg';
 
 import {
+  buildCustomerQuotationHistoryReport,
   buildMonthlyQuotationReport,
   buildOpenAgingQuotationReport,
   getMonthlyQuotationReportDataWindow,
+  type CustomerQuotationHistoryFilters,
+  type CustomerQuotationHistoryReportResult,
+  type CustomerQuotationHistorySourceRecord,
   type MonthlyQuotationBusinessUnit,
   type MonthlyQuotationReportFilters,
   type MonthlyQuotationReportResult,
@@ -27,6 +31,29 @@ export interface OpenAgingQuotationReportQuery {
   readonly detailLimit?: number;
 }
 
+export interface CustomerQuotationHistoryReportQuery {
+  readonly filters: CustomerQuotationHistoryFilters;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly generatedAt?: Date;
+  readonly timelineLimit?: number;
+}
+
+export interface CustomerQuotationHistoryDirectoryQuery {
+  readonly businessUnitId: string;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly search?: string;
+  readonly limit?: number;
+}
+
+export interface CustomerQuotationHistoryDirectoryRow {
+  readonly customerId: number;
+  readonly displayName: string;
+  readonly quotationCount: number;
+  readonly salespersonCount: number;
+  readonly firstQuotationDate: string;
+  readonly lastQuotationDate: string;
+}
+
 interface BusinessUnitRow extends QueryResultRow {
   readonly id: string;
   readonly display_name: string;
@@ -45,6 +72,15 @@ interface ReportSourceRow extends QueryResultRow {
   readonly customer_name: string;
   readonly amount_total: string;
   readonly currency_code: string;
+}
+
+interface CustomerDirectoryRow extends QueryResultRow {
+  readonly odoo_partner_id: number;
+  readonly display_name: string;
+  readonly quotation_count: string;
+  readonly salesperson_count: string;
+  readonly first_quotation_date: Date;
+  readonly last_quotation_date: Date;
 }
 
 interface LastSyncRow extends QueryResultRow {
@@ -73,7 +109,9 @@ function mapBusinessUnit(row: BusinessUnitRow): MonthlyQuotationBusinessUnit {
 
 function mapSourceRecord(
   row: ReportSourceRow,
-): MonthlyQuotationSourceRecord & OpenAgingQuotationSourceRecord {
+): MonthlyQuotationSourceRecord &
+  OpenAgingQuotationSourceRecord &
+  CustomerQuotationHistorySourceRecord {
   return {
     id: row.odoo_id,
     state: row.source_state,
@@ -228,5 +266,74 @@ export async function queryOpenAgingQuotationReport(
     generatedAt: (input.generatedAt ?? new Date()).toISOString(),
     lastSyncAt,
     ...(input.detailLimit === undefined ? {} : { detailLimit: input.detailLimit }),
+  });
+}
+
+export async function searchCustomerQuotationHistoryDirectory(
+  pool: Pool,
+  input: CustomerQuotationHistoryDirectoryQuery,
+): Promise<readonly CustomerQuotationHistoryDirectoryRow[]> {
+  assertReportScope(input.businessUnitId, input.allowedBusinessUnitIds);
+  const search = input.search?.trim() ?? '';
+  const limit = Math.min(Math.max(input.limit ?? 30, 1), 100);
+  const result = await pool.query<CustomerDirectoryRow>(
+    `SELECT
+       customers.odoo_partner_id,
+       customers.display_name,
+       count(*)::text AS quotation_count,
+       count(DISTINCT orders.odoo_salesperson_id)::text AS salesperson_count,
+       min(orders.create_date) AS first_quotation_date,
+       max(orders.create_date) AS last_quotation_date
+     FROM odoo_sale_orders AS orders
+     JOIN odoo_customers AS customers ON customers.odoo_partner_id = orders.odoo_partner_id
+     WHERE orders.business_unit_id = $1::uuid
+       AND ($2::text = '' OR customers.display_name ILIKE '%' || $2 || '%')
+     GROUP BY customers.odoo_partner_id, customers.display_name
+     ORDER BY max(orders.create_date) DESC, customers.display_name
+     LIMIT $3`,
+    [input.businessUnitId, search, limit],
+  );
+
+  return result.rows.map((row) => ({
+    customerId: row.odoo_partner_id,
+    displayName: row.display_name,
+    quotationCount: Number(row.quotation_count),
+    salespersonCount: Number(row.salesperson_count),
+    firstQuotationDate: row.first_quotation_date.toISOString(),
+    lastQuotationDate: row.last_quotation_date.toISOString(),
+  }));
+}
+
+export async function queryCustomerQuotationHistoryReport(
+  pool: Pool,
+  input: CustomerQuotationHistoryReportQuery,
+): Promise<CustomerQuotationHistoryReportResult> {
+  assertReportScope(input.filters.businessUnitId, input.allowedBusinessUnitIds);
+  const [businessUnits, sourceResult, lastSyncAt] = await Promise.all([
+    queryBusinessUnits(pool, input.allowedBusinessUnitIds),
+    pool.query<ReportSourceRow>(
+      `${reportSourceSelect}
+       WHERE orders.business_unit_id = $1::uuid
+         AND orders.odoo_partner_id = $2::integer
+       ORDER BY orders.create_date, orders.odoo_id`,
+      [input.filters.businessUnitId, input.filters.customerId],
+    ),
+    queryLastSuccessfulSync(pool),
+  ]);
+  const businessUnit = businessUnits.find(({ id }) => id === input.filters.businessUnitId);
+
+  if (!businessUnit) {
+    throw new Error('REPORT_BUSINESS_UNIT_UNAVAILABLE');
+  }
+
+  return buildCustomerQuotationHistoryReport({
+    records: sourceResult.rows.map(mapSourceRecord),
+    filters: input.filters,
+    businessUnit,
+    businessUnits,
+    allowedBusinessUnitIds: input.allowedBusinessUnitIds,
+    generatedAt: (input.generatedAt ?? new Date()).toISOString(),
+    lastSyncAt,
+    ...(input.timelineLimit === undefined ? {} : { timelineLimit: input.timelineLimit }),
   });
 }
