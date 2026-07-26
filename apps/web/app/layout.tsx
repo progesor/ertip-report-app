@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 import './m3.css';
 import './m5-5.css';
+import './m5-5-report-shell.css';
 
 export const metadata: Metadata = {
   title: 'Ertip Report App',
