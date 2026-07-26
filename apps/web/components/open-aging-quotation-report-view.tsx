@@ -63,12 +63,6 @@ function formatMoney(value: string, currencyCode: string): string {
   }).format(Number(value));
 }
 
-function sourceStateLabel(value: string): string {
-  if (value === 'sent') return 'Gönderildi';
-  if (value === 'draft') return 'Taslak';
-  return value;
-}
-
 function validityTone(value: OpenAgingValidityGroup): string {
   if (value === 'overdue') return 'red';
   if (value === 'nearing_expiry') return 'amber';
@@ -76,15 +70,15 @@ function validityTone(value: OpenAgingValidityGroup): string {
   return 'muted';
 }
 
-function expiryText(row: {
+function expiryText(input: {
   readonly validityGroup: OpenAgingValidityGroup;
   readonly daysToExpiry: number | null;
 }): string {
-  if (row.validityGroup === 'missing') return 'Tarih eksik';
-  if (row.daysToExpiry === null) return '—';
-  if (row.daysToExpiry < 0) return `${formatNumber(Math.abs(row.daysToExpiry))} gün gecikmiş`;
-  if (row.daysToExpiry === 0) return 'Bugün sona eriyor';
-  return `${formatNumber(row.daysToExpiry)} gün kaldı`;
+  if (input.validityGroup === 'missing') return 'Tarih eksik';
+  if (input.daysToExpiry === null) return '—';
+  if (input.daysToExpiry < 0) return `${formatNumber(Math.abs(input.daysToExpiry))} gün gecikmiş`;
+  if (input.daysToExpiry === 0) return 'Bugün sona eriyor';
+  return `${formatNumber(input.daysToExpiry)} gün kaldı`;
 }
 
 function createReportHref(
@@ -116,69 +110,80 @@ function createReportHref(
 }
 
 function createExportHref(result: OpenAgingQuotationReportResult): string {
-  return createReportHref(result).replace(
-    '/reports/open-aging-quotations?',
-    '/api/reports/open-aging-quotations/export?format=xlsx&',
-  );
+  const query = createReportHref(result).split('?')[1] ?? '';
+  return `/api/reports/open-aging-quotations/export?format=xlsx&${query}`;
 }
 
-function OwnershipTable({
-  kind,
-  result,
-}: Readonly<{
-  kind: 'salesperson' | 'customer';
-  result: OpenAgingQuotationReportResult;
-}>) {
-  const rows = kind === 'salesperson' ? result.salespeople : result.customers;
-
+function SalespersonTable({ result }: Readonly<{ result: OpenAgingQuotationReportResult }>) {
   return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>{kind === 'salesperson' ? 'Personel' : 'Müşteri'}</th>
-            <th>Takipte</th>
-            <th>Açık</th>
-            <th>Süresi dolmuş</th>
-            <th>Yaklaşan</th>
-            <th>Tarih eksik</th>
-            <th>En yaşlı</th>
-            <th>{kind === 'salesperson' ? 'Müşteri' : 'Personel'}</th>
-            <th>Son teklif</th>
+            <th>Personel</th><th>Takipte</th><th>Açık</th><th>Süresi dolmuş</th><th>Yaklaşan</th>
+            <th>Tarih eksik</th><th>En yaşlı</th><th>Müşteri</th><th>Son teklif</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
-            const id = kind === 'salesperson' ? row.salespersonId : row.customerId;
-            const dimensionCount = kind === 'salesperson' ? row.customerCount : row.salespersonCount;
-            const href = createReportHref(result, {
-              [kind === 'salesperson' ? 'salespersonId' : 'customerId']:
-                id === null ? null : String(id),
-            });
-
-            return (
-              <tr key={`${kind}-${id ?? 'unassigned'}`}>
-                <td>
-                  {id === null ? (
+          {result.salespeople.map((row) => (
+            <tr key={row.salespersonId ?? 'unassigned'}>
+              <td>
+                {row.salespersonId === null ? (
+                  <strong>{row.displayName}</strong>
+                ) : (
+                  <a href={createReportHref(result, { salespersonId: String(row.salespersonId) })}>
                     <strong>{row.displayName}</strong>
-                  ) : (
-                    <a href={href}><strong>{row.displayName}</strong></a>
-                  )}
-                  <small className="table-subtitle">
-                    {id === null ? 'Kaynakta personel atanmamış' : `Odoo #${id}`}
-                  </small>
-                </td>
-                <td>{formatNumber(row.metrics.trackedCount)}</td>
-                <td className="green-text">{formatNumber(row.metrics.currentlyOpenCount)}</td>
-                <td className="red-text">{formatNumber(row.metrics.overdueCount)}</td>
-                <td className="amber-text">{formatNumber(row.metrics.nearingExpiryCount)}</td>
-                <td>{formatNumber(row.metrics.missingValidityCount)}</td>
-                <td>{formatNumber(row.metrics.oldestAgeDays)} gün</td>
-                <td>{formatNumber(dimensionCount)}</td>
-                <td>{formatDate(row.lastQuotationDate)}</td>
-              </tr>
-            );
-          })}
+                  </a>
+                )}
+                <small className="table-subtitle">
+                  {row.salespersonId === null ? 'Kaynakta personel atanmamış' : `Odoo #${row.salespersonId}`}
+                </small>
+              </td>
+              <td>{formatNumber(row.metrics.trackedCount)}</td>
+              <td className="green-text">{formatNumber(row.metrics.currentlyOpenCount)}</td>
+              <td className="red-text">{formatNumber(row.metrics.overdueCount)}</td>
+              <td className="amber-text">{formatNumber(row.metrics.nearingExpiryCount)}</td>
+              <td>{formatNumber(row.metrics.missingValidityCount)}</td>
+              <td>{formatNumber(row.metrics.oldestAgeDays)} gün</td>
+              <td>{formatNumber(row.customerCount)}</td>
+              <td>{formatDate(row.lastQuotationDate)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CustomerTable({ result }: Readonly<{ result: OpenAgingQuotationReportResult }>) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Müşteri</th><th>Takipte</th><th>Açık</th><th>Süresi dolmuş</th><th>Yaklaşan</th>
+            <th>Tarih eksik</th><th>En yaşlı</th><th>Personel</th><th>Son teklif</th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.customers.map((row) => (
+            <tr key={row.customerId}>
+              <td>
+                <a href={createReportHref(result, { customerId: String(row.customerId) })}>
+                  <strong>{row.displayName}</strong>
+                </a>
+                <small className="table-subtitle">Odoo #{row.customerId}</small>
+              </td>
+              <td>{formatNumber(row.metrics.trackedCount)}</td>
+              <td className="green-text">{formatNumber(row.metrics.currentlyOpenCount)}</td>
+              <td className="red-text">{formatNumber(row.metrics.overdueCount)}</td>
+              <td className="amber-text">{formatNumber(row.metrics.nearingExpiryCount)}</td>
+              <td>{formatNumber(row.metrics.missingValidityCount)}</td>
+              <td>{formatNumber(row.metrics.oldestAgeDays)} gün</td>
+              <td>{formatNumber(row.salespersonCount)}</td>
+              <td>{formatDate(row.lastQuotationDate)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -208,10 +213,7 @@ export function OpenAgingQuotationReportView({
   return (
     <div className="app-shell report-app-shell">
       <aside className="sidebar report-sidebar">
-        <a className="brand" href="/">
-          <b>ER</b>
-          <div><strong>Ertip Report</strong><span>Executive Intelligence</span></div>
-        </a>
+        <a className="brand" href="/"><b>ER</b><div><strong>Ertip Report</strong><span>Executive Intelligence</span></div></a>
         <nav aria-label="Rapor navigasyonu">
           <small>Çalışma Alanı</small>
           <a className="nav-item" href="/"><i>1</i>Genel Bakış</a>
@@ -220,101 +222,33 @@ export function OpenAgingQuotationReportView({
           <small className="nav-heading">Aktif rapor</small>
           <span className="sidebar-report-name">Açık ve Yaşlanan Teklifler</span>
         </nav>
-        <div className="sidebar-footer">
-          <span className="status online" />
-          <div>
-            <strong>{result.businessUnit.displayName}</strong>
-            <small>Son senkron: {formatDateTime(result.lastSyncAt)}</small>
-          </div>
-        </div>
+        <div className="sidebar-footer"><span className="status online" /><div><strong>{result.businessUnit.displayName}</strong><small>Son senkron: {formatDateTime(result.lastSyncAt)}</small></div></div>
       </aside>
 
       <main className="report-main">
         <header className="topbar report-topbar no-print">
           <div><span className="eyebrow">Operasyonel Takip</span><h1>Yönetim Raporu</h1></div>
-          <div className="user-menu">
-            <div>
-              <strong>{user.displayName}</strong>
-              <span>{user.role === 'owner' ? 'Owner' : 'Manager'} · {user.email}</span>
-            </div>
-            <a className="button" href="/">Panele dön</a>
-          </div>
+          <div className="user-menu"><div><strong>{user.displayName}</strong><span>{user.role === 'owner' ? 'Owner' : 'Manager'} · {user.email}</span></div><a className="button" href="/">Panele dön</a></div>
         </header>
 
         <section className="report-heading">
           <div>
-            <div className="badges">
-              <span>{result.businessUnit.displayName}</span>
-              <span>{demoMode ? 'Demo veri' : 'Canlı veri'}</span>
-              <span>{result.scope.serverEnforced ? 'Sunucu kapsamı' : 'Kapsam yok'}</span>
-              <span>v{result.definition.version}</span>
-            </div>
+            <div className="badges"><span>{result.businessUnit.displayName}</span><span>{demoMode ? 'Demo veri' : 'Canlı veri'}</span><span>Sunucu kapsamı</span><span>v{result.definition.version}</span></div>
             <h2>Açık ve Yaşlanan Teklifler</h2>
-            <p>
-              Sonuçlanmamış taslak ve gönderilmiş teklifleri yaş, geçerlilik, personel ve müşteri
-              sahipliğiyle izler. Süresi dolmuş kayıtlar operasyonel takipte görünmeye devam eder.
-            </p>
+            <p>Sonuçlanmamış taslak ve gönderilmiş teklifleri yaş, geçerlilik, personel ve müşteri sahipliğiyle izler. Süresi dolmuş kayıtlar takip listesinde kalır.</p>
           </div>
-          <div className="report-heading-actions no-print">
-            <a className="button" href={createExportHref(result)}>Excel Takip Çıktısı</a>
-            <a className="button primary" href="#teklif-detayi">Teklif Detayı</a>
-          </div>
+          <div className="report-heading-actions no-print"><a className="button" href={createExportHref(result)}>Excel Takip Çıktısı</a><a className="button primary" href="#teklif-detayi">Teklif Detayı</a></div>
         </section>
 
-        <section className="report-metadata print-only">
-          <strong>{result.definition.name}</strong>
-          <span>Oluşturulma: {formatDateTime(result.generatedAt)}</span>
-          <span>Son senkronizasyon: {formatDateTime(result.lastSyncAt)}</span>
-          <span>Referans tarihi: {formatDate(result.asOfDate)}</span>
-        </section>
+        <section className="report-metadata print-only"><strong>{result.definition.name}</strong><span>Oluşturulma: {formatDateTime(result.generatedAt)}</span><span>Son senkronizasyon: {formatDateTime(result.lastSyncAt)}</span><span>Referans tarihi: {formatDate(result.asOfDate)}</span></section>
 
         <form className="report-filters no-print" method="get">
-          <label>
-            <span>İş birimi</span>
-            <select defaultValue={result.filters.businessUnitId} name="businessUnitId">
-              {result.options.businessUnits.map((option) => (
-                <option key={option.id} value={option.id}>{option.displayName}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Personel</span>
-            <select defaultValue={result.filters.salespersonId ?? ''} name="salespersonId">
-              <option value="">Tüm personel</option>
-              {result.options.salespeople.map((option) => (
-                <option key={option.id} value={option.id}>{option.displayName}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Müşteri</span>
-            <select defaultValue={result.filters.customerId ?? ''} name="customerId">
-              <option value="">Tüm müşteriler</option>
-              {result.options.customers.map((option) => (
-                <option key={option.id} value={option.id}>{option.displayName}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Teklif yaşı</span>
-            <select defaultValue={result.filters.ageBucket} name="ageBucket">
-              <option value="all">Tüm yaşlar</option>
-              {Object.entries(ageLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Geçerlilik</span>
-            <select defaultValue={result.filters.validityGroup} name="validityGroup">
-              <option value="all">Tüm gruplar</option>
-              {Object.entries(validityLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
-          <button className="button primary" type="submit">Raporu Çalıştır</button>
-          <a className="button" href="/reports/open-aging-quotations">Temizle</a>
+          <label><span>İş birimi</span><select defaultValue={result.filters.businessUnitId} name="businessUnitId">{result.options.businessUnits.map((option) => <option key={option.id} value={option.id}>{option.displayName}</option>)}</select></label>
+          <label><span>Personel</span><select defaultValue={result.filters.salespersonId ?? ''} name="salespersonId"><option value="">Tüm personel</option>{result.options.salespeople.map((option) => <option key={option.id} value={option.id}>{option.displayName}</option>)}</select></label>
+          <label><span>Müşteri</span><select defaultValue={result.filters.customerId ?? ''} name="customerId"><option value="">Tüm müşteriler</option>{result.options.customers.map((option) => <option key={option.id} value={option.id}>{option.displayName}</option>)}</select></label>
+          <label><span>Teklif yaşı</span><select defaultValue={result.filters.ageBucket} name="ageBucket"><option value="all">Tüm yaşlar</option>{Object.entries(ageLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label><span>Geçerlilik</span><select defaultValue={result.filters.validityGroup} name="validityGroup"><option value="all">Tüm gruplar</option>{Object.entries(validityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <button className="button primary" type="submit">Raporu Çalıştır</button><a className="button" href="/reports/open-aging-quotations">Temizle</a>
         </form>
 
         <section className="report-period-summary">
@@ -336,90 +270,25 @@ export function OpenAgingQuotationReportView({
         <section className="report-analytics-grid">
           <article className="panel report-section">
             <div className="panel-title"><div><span className="eyebrow">Yaş dağılımı</span><h3>Teklif Yaş Kovaları</h3></div><span className="panel-meta">create_date → referans tarihi</span></div>
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Yaş</th><th>Toplam</th><th>Halen açık</th><th>Süresi dolmuş</th><th>Drill-down</th></tr></thead>
-                <tbody>
-                  {result.ageDistribution.map((row) => (
-                    <tr key={row.code}>
-                      <td><strong>{row.label}</strong></td>
-                      <td>{formatNumber(row.count)}</td>
-                      <td className="green-text">{formatNumber(row.currentlyOpenCount)}</td>
-                      <td className="red-text">{formatNumber(row.overdueCount)}</td>
-                      <td><a href={createReportHref(result, { ageBucket: row.code })}>Kayıtları aç</a></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <div className="table-wrap"><table><thead><tr><th>Yaş</th><th>Toplam</th><th>Halen açık</th><th>Süresi dolmuş</th><th>Drill-down</th></tr></thead><tbody>{result.ageDistribution.map((row) => <tr key={row.code}><td><strong>{row.label}</strong></td><td>{formatNumber(row.count)}</td><td className="green-text">{formatNumber(row.currentlyOpenCount)}</td><td className="red-text">{formatNumber(row.overdueCount)}</td><td><a href={createReportHref(result, { ageBucket: row.code })}>Kayıtları aç</a></td></tr>)}</tbody></table></div>
           </article>
-
           <article className="panel report-section">
             <div className="panel-title"><div><span className="eyebrow">Geçerlilik dağılımı</span><h3>Takip Grupları</h3></div><span className="panel-meta">7 günlük yaklaşan eşik</span></div>
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Grup</th><th>Toplam</th><th>Halen açık</th><th>Drill-down</th></tr></thead>
-                <tbody>
-                  {result.validityDistribution.map((row) => (
-                    <tr key={row.code}>
-                      <td><span className={`report-status ${validityTone(row.code)}`}>{row.label}</span></td>
-                      <td>{formatNumber(row.count)}</td>
-                      <td>{formatNumber(row.currentlyOpenCount)}</td>
-                      <td><a href={createReportHref(result, { validityGroup: row.code })}>Kayıtları aç</a></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <div className="table-wrap"><table><thead><tr><th>Grup</th><th>Toplam</th><th>Halen açık</th><th>Drill-down</th></tr></thead><tbody>{result.validityDistribution.map((row) => <tr key={row.code}><td><span className={`report-status ${validityTone(row.code)}`}>{row.label}</span></td><td>{formatNumber(row.count)}</td><td>{formatNumber(row.currentlyOpenCount)}</td><td><a href={createReportHref(result, { validityGroup: row.code })}>Kayıtları aç</a></td></tr>)}</tbody></table></div>
           </article>
         </section>
 
-        <section className="panel report-section report-personnel-section">
-          <div className="panel-title"><div><span className="eyebrow">Sahiplik</span><h3>Personel Takip Özeti</h3></div><span className="panel-meta">{formatNumber(result.salespeople.length)} personel kovası</span></div>
-          {result.salespeople.length > 0 ? <OwnershipTable kind="salesperson" result={result} /> : <p className="empty-state">Seçili filtrelerde personel verisi bulunamadı.</p>}
-        </section>
-
-        <section className="panel report-section report-customer-section">
-          <div className="panel-title"><div><span className="eyebrow">Sahiplik</span><h3>Müşteri Takip Özeti</h3></div><span className="panel-meta">{formatNumber(result.customers.length)} müşteri</span></div>
-          {result.customers.length > 0 ? <OwnershipTable kind="customer" result={result} /> : <p className="empty-state">Seçili filtrelerde müşteri verisi bulunamadı.</p>}
-        </section>
+        <section className="panel report-section report-personnel-section"><div className="panel-title"><div><span className="eyebrow">Sahiplik</span><h3>Personel Takip Özeti</h3></div><span className="panel-meta">{formatNumber(result.salespeople.length)} personel kovası</span></div>{result.salespeople.length > 0 ? <SalespersonTable result={result} /> : <p className="empty-state">Seçili filtrelerde personel verisi bulunamadı.</p>}</section>
+        <section className="panel report-section report-customer-section"><div className="panel-title"><div><span className="eyebrow">Sahiplik</span><h3>Müşteri Takip Özeti</h3></div><span className="panel-meta">{formatNumber(result.customers.length)} müşteri</span></div>{result.customers.length > 0 ? <CustomerTable result={result} /> : <p className="empty-state">Seçili filtrelerde müşteri verisi bulunamadı.</p>}</section>
 
         <section className="panel report-section report-details-section" id="teklif-detayi">
-          <div className="panel-title">
-            <div><span className="eyebrow">Drill-down</span><h3>Teklif Takip Detayı</h3></div>
-            <span className="panel-meta">{formatNumber(result.detailTotalCount)} kayıt{result.detailsTruncated ? ` · ilk ${formatNumber(result.detailLimit)} gösteriliyor` : ''}</span>
-          </div>
+          <div className="panel-title"><div><span className="eyebrow">Drill-down</span><h3>Teklif Takip Detayı</h3></div><span className="panel-meta">{formatNumber(result.detailTotalCount)} kayıt{result.detailsTruncated ? ` · ilk ${formatNumber(result.detailLimit)} gösteriliyor` : ''}</span></div>
           {result.details.length > 0 ? (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Odoo ID</th><th>Oluşturma</th><th>Yaş</th><th>Personel</th><th>Müşteri</th><th>Kaynak durum</th><th>Geçerlilik</th><th>Takip durumu</th><th>Tutar</th></tr>
-                </thead>
-                <tbody>
-                  {result.details.map((row) => (
-                    <tr key={row.id}>
-                      <td>#{row.id}</td>
-                      <td>{formatDateTime(row.createDate)}</td>
-                      <td>{formatNumber(row.ageDays)} gün</td>
-                      <td>{row.salespersonName}</td>
-                      <td>{row.customerName}</td>
-                      <td>{sourceStateLabel(row.sourceState)}</td>
-                      <td>{formatDate(row.validityDate)}</td>
-                      <td><span className={`report-status ${validityTone(row.validityGroup)}`}>{expiryText(row)}</span></td>
-                      <td>{formatMoney(row.amountTotal, row.currencyCode)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <div className="table-wrap"><table><thead><tr><th>Odoo ID</th><th>Oluşturma</th><th>Yaş</th><th>Personel</th><th>Müşteri</th><th>Kaynak durum</th><th>Geçerlilik</th><th>Takip durumu</th><th>Tutar</th></tr></thead><tbody>{result.details.map((row) => <tr key={row.id}><td>#{row.id}</td><td>{formatDateTime(row.createDate)}</td><td>{formatNumber(row.ageDays)} gün</td><td>{row.salespersonName}</td><td>{row.customerName}</td><td>{row.sourceState === 'sent' ? 'Gönderildi' : 'Taslak'}</td><td>{formatDate(row.validityDate)}</td><td><span className={`report-status ${validityTone(row.validityGroup)}`}>{expiryText(row)}</span></td><td>{formatMoney(row.amountTotal, row.currencyCode)}</td></tr>)}</tbody></table></div>
           ) : <p className="empty-state">Seçili filtrelerde takip edilecek teklif bulunamadı.</p>}
         </section>
 
-        <footer className="report-footer">
-          <span>{result.definition.name} · v{result.definition.version}</span>
-          <span>Metrik v{result.definition.metricVersion} · {result.definition.dateAxis}</span>
-          <span>Canlı sonuç · {formatDateTime(result.generatedAt)}</span>
-        </footer>
+        <footer className="report-footer"><span>{result.definition.name} · v{result.definition.version}</span><span>Metrik v{result.definition.metricVersion} · {result.definition.dateAxis}</span><span>Canlı sonuç · {formatDateTime(result.generatedAt)}</span></footer>
       </main>
     </div>
   );
