@@ -28,7 +28,7 @@ function finishSheet(sheet: ExcelJS.Worksheet): void {
 }
 
 function applyAmountFormats(sheet: ExcelJS.Worksheet): void {
-  for (const key of [
+  const amountKeys = new Set([
     'quotation',
     'previousQuotation',
     'quotationChange',
@@ -39,13 +39,13 @@ function applyAmountFormats(sheet: ExcelJS.Worksheet): void {
     'notRealized',
     'expired',
     'cancelled',
-  ]) {
-    const column = sheet.getColumn(key);
-    if (column.number <= sheet.columnCount) column.numFmt = '#,##0.00';
-  }
-  for (const key of ['quotationPercent', 'realizedPercent', 'conversion']) {
-    const column = sheet.getColumn(key);
-    if (column.number <= sheet.columnCount) column.numFmt = '0.0%';
+  ]);
+  const percentKeys = new Set(['quotationPercent', 'realizedPercent', 'conversion']);
+
+  for (const column of sheet.columns) {
+    const key = typeof column.key === 'string' ? column.key : '';
+    if (amountKeys.has(key)) column.numFmt = '#,##0.00';
+    if (percentKeys.has(key)) column.numFmt = '0.0%';
   }
 }
 
