@@ -16,10 +16,13 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
   await expect(page.getByRole('heading', { name: 'Aylık Teklif Performansı' })).toBeVisible();
   await expect(page.getByText('Browser Test Owner')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısını Test Et' })).toBeDisabled();
-  await expect(page.getByRole('link', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Personel Performansı' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Tekliften Siparişe Dönüşüm' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Raporlar', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Raporlar', exact: true }).click();
+  await expect(page).toHaveURL('/reports');
+  await expect(page.getByRole('heading', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Personel Performansı' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tekliften Siparişe Dönüşüm' })).toBeVisible();
 
   const statusResponse = await request.get('/api/system/status');
   expect(statusResponse.ok()).toBeTruthy();
