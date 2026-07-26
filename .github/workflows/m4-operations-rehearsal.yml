@@ -68,7 +68,12 @@ jobs:
           mkdir -p "$OUTPUT_DIR"
 
           cleanup() {
-            docker rm -f m4-restore-db >/dev/null 2>&1 || true
+            docker run --rm --network host \
+              -e PGPASSWORD=ertip \
+              "$POSTGRES_IMAGE" \
+              dropdb --if-exists --force \
+                -h 127.0.0.1 -p 5432 -U ertip ertip_restore \
+                >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
@@ -79,6 +84,7 @@ jobs:
             psql -X -qAt -v ON_ERROR_STOP=1 \
               -h 127.0.0.1 -p 5432 -U ertip -d ertip_report \
               -f /ops/signature.sql)"
+          printf '%s\n' "$SOURCE_SIGNATURE" > "$OUTPUT_DIR/source-signature.json"
 
           docker run --rm --network host \
             -e PGPASSWORD=ertip \
@@ -88,30 +94,25 @@ jobs:
               -h 127.0.0.1 -p 5432 -U ertip -d ertip_report \
               -f /backup/ertip-report-m4.dump
 
-          docker run --detach --name m4-restore-db \
-            -e POSTGRES_USER=ertip \
-            -e POSTGRES_PASSWORD=ertip \
-            -e POSTGRES_DB=ertip_restore \
-            -p 5433:5432 \
-            "$POSTGRES_IMAGE"
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            "$POSTGRES_IMAGE" \
+            dropdb --if-exists --force \
+              -h 127.0.0.1 -p 5432 -U ertip ertip_restore
 
-          for attempt in $(seq 1 30); do
-            if docker exec m4-restore-db pg_isready -U ertip -d ertip_restore >/dev/null 2>&1; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              docker logs m4-restore-db
-              exit 1
-            fi
-            sleep 1
-          done
+          docker run --rm --network host \
+            -e PGPASSWORD=ertip \
+            "$POSTGRES_IMAGE" \
+            createdb \
+              -h 127.0.0.1 -p 5432 -U ertip \
+              --template=template0 --encoding=UTF8 ertip_restore
 
           docker run --rm --network host \
             -e PGPASSWORD=ertip \
             -v "$OUTPUT_DIR:/backup:ro" \
             "$POSTGRES_IMAGE" \
             pg_restore --exit-on-error --no-owner --no-privileges \
-              -h 127.0.0.1 -p 5433 -U ertip -d ertip_restore \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_restore \
               /backup/ertip-report-m4.dump
 
           RESTORE_SIGNATURE="$(docker run --rm --network host \
@@ -119,10 +120,15 @@ jobs:
             -v "$GITHUB_WORKSPACE/tooling/m4-operations:/ops:ro" \
             "$POSTGRES_IMAGE" \
             psql -X -qAt -v ON_ERROR_STOP=1 \
-              -h 127.0.0.1 -p 5433 -U ertip -d ertip_restore \
+              -h 127.0.0.1 -p 5432 -U ertip -d ertip_restore \
               -f /ops/signature.sql)"
+          printf '%s\n' "$RESTORE_SIGNATURE" > "$OUTPUT_DIR/restore-signature.json"
 
-          test "$SOURCE_SIGNATURE" = "$RESTORE_SIGNATURE"
+          if [ "$SOURCE_SIGNATURE" != "$RESTORE_SIGNATURE" ]; then
+            echo 'Source and restored database signatures differ.' >&2
+            diff -u "$OUTPUT_DIR/source-signature.json" "$OUTPUT_DIR/restore-signature.json" || true
+            exit 1
+          fi
 
           BACKUP_SHA256="$(sha256sum "$OUTPUT_DIR/ertip-report-m4.dump" | awk '{print $1}')"
           BACKUP_SIZE="$(stat -c '%s' "$OUTPUT_DIR/ertip-report-m4.dump")"
@@ -131,7 +137,7 @@ jobs:
           # M4 Backup/Restore Rehearsal Evidence
 
           - Source: isolated PostgreSQL 17 CI database
-          - Restore target: fresh isolated PostgreSQL 17 database
+          - Restore target: fresh database created from template0
           - Backup format: PostgreSQL custom archive
           - Backup bytes: $BACKUP_SIZE
           - SHA-256: $BACKUP_SHA256
