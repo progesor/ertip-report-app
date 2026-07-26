@@ -1,0 +1,43 @@
+name: PDF Preview
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: 1
+  APP_ENV: test
+  APP_DEMO_MODE: true
+  ODOO_BASE_URL: https://ertipmedical.odoo.com
+  ODOO_DATABASE: ertipmedical
+  ODOO_API_KEY: ''
+
+jobs:
+  preview:
+    name: pdf_preview
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.4.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+          cache-dependency-path: package.json
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - run: pnpm browser:smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-export-previews
+          path: test-results/report-export-previews
+          if-no-files-found: ignore
+          retention-days: 3
