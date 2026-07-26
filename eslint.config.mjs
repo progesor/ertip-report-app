@@ -14,6 +14,8 @@ export default defineConfig([
   },
   {
     files: [
+      'apps/web/components/customer-history-directory-view.tsx',
+      'apps/web/components/customer-quotation-history-report-view.tsx',
       'apps/web/components/monthly-quotation-report-view.tsx',
       'apps/web/components/open-aging-quotation-report-view.tsx',
     ],

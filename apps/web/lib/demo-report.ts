@@ -1,7 +1,11 @@
 import {
+  buildCustomerQuotationHistoryReport,
   buildMonthlyQuotationReport,
   buildOpenAgingQuotationReport,
   INTERNATIONAL_BUSINESS_UNIT_ID,
+  type CustomerQuotationHistoryFilters,
+  type CustomerQuotationHistoryReportResult,
+  type CustomerQuotationHistorySourceRecord,
   type MonthlyQuotationReportFilters,
   type MonthlyQuotationReportResult,
   type MonthlyQuotationSourceRecord,
@@ -24,7 +28,9 @@ const customers = [
 ] as const;
 const states = ['sale', 'draft', 'sale', 'cancel', 'draft', 'sale', 'draft'] as const;
 
-type DemoQuotationRecord = MonthlyQuotationSourceRecord & OpenAgingQuotationSourceRecord;
+type DemoQuotationRecord = MonthlyQuotationSourceRecord &
+  OpenAgingQuotationSourceRecord &
+  CustomerQuotationHistorySourceRecord;
 
 function createDemoRecords(): readonly DemoQuotationRecord[] {
   const records: DemoQuotationRecord[] = [];
@@ -133,4 +139,47 @@ export function getDemoOpenAgingQuotationReport(
     lastSyncAt: '2026-07-25T20:04:00.000Z',
     detailLimit,
   });
+}
+
+export function getDemoCustomerQuotationHistoryReport(
+  filters: CustomerQuotationHistoryFilters,
+  generatedAt: Date,
+  timelineLimit = 500,
+): CustomerQuotationHistoryReportResult {
+  return buildCustomerQuotationHistoryReport({
+    records: demoRecords,
+    filters,
+    businessUnit: demoBusinessUnit,
+    businessUnits: [demoBusinessUnit],
+    allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
+    generatedAt: generatedAt.toISOString(),
+    lastSyncAt: '2026-07-25T20:04:00.000Z',
+    timelineLimit,
+  });
+}
+
+export function getDemoCustomerQuotationHistoryDirectory(search = '') {
+  const query = search.trim().toLocaleLowerCase('tr-TR');
+  const groups = new Map<number, DemoQuotationRecord[]>();
+  for (const record of demoRecords) {
+    groups.set(record.customerId, [...(groups.get(record.customerId) ?? []), record]);
+  }
+
+  return [...groups.values()]
+    .map((records) => ({
+      customerId: records[0]?.customerId ?? 0,
+      displayName: records[0]?.customerName ?? 'Demo Customer',
+      quotationCount: records.length,
+      salespersonCount: new Set(records.map(({ salespersonId }) => salespersonId ?? 'unassigned')).size,
+      firstQuotationDate: [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
+        ?.createDate ?? '',
+      lastQuotationDate: [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
+        ?.createDate ?? '',
+    }))
+    .filter(({ displayName }) => !query || displayName.toLocaleLowerCase('tr-TR').includes(query))
+    .sort(
+      (left, right) =>
+        right.lastQuotationDate.localeCompare(left.lastQuotationDate) ||
+        left.displayName.localeCompare(right.displayName, 'tr'),
+    );
 }

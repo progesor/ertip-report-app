@@ -1,11 +1,16 @@
 import { readRuntimeConfig } from '@ertip/config';
 import {
   createDatabasePool,
+  queryCustomerQuotationHistoryReport,
   queryMonthlyQuotationReport,
   queryOpenAgingQuotationReport,
+  searchCustomerQuotationHistoryDirectory,
+  type CustomerQuotationHistoryDirectoryRow,
 } from '@ertip/db';
 import {
   normalizeQuotationStatus,
+  type CustomerQuotationHistoryFilters,
+  type CustomerQuotationHistoryReportResult,
   type MonthlyQuotationDetailRow,
   type MonthlyQuotationReportFilters,
   type MonthlyQuotationReportResult,
@@ -110,6 +115,26 @@ export async function getOpenAgingQuotationReport(input: {
 }): Promise<OpenAgingQuotationReportResult> {
   await getAppDatabase();
   return queryOpenAgingQuotationReport(getReportingPool(), input);
+}
+
+export async function getCustomerQuotationHistoryReport(input: {
+  readonly filters: CustomerQuotationHistoryFilters;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly generatedAt?: Date;
+  readonly timelineLimit?: number;
+}): Promise<CustomerQuotationHistoryReportResult> {
+  await getAppDatabase();
+  return queryCustomerQuotationHistoryReport(getReportingPool(), input);
+}
+
+export async function getCustomerQuotationHistoryDirectory(input: {
+  readonly businessUnitId: string;
+  readonly allowedBusinessUnitIds: readonly string[];
+  readonly search?: string;
+  readonly limit?: number;
+}): Promise<readonly CustomerQuotationHistoryDirectoryRow[]> {
+  await getAppDatabase();
+  return searchCustomerQuotationHistoryDirectory(getReportingPool(), input);
 }
 
 export async function getMonthlyQuotationExportDetails(input: {

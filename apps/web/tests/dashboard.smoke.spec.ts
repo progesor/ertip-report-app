@@ -10,6 +10,7 @@ test('dashboard renders and owner/manager surfaces remain distinct', async ({ pa
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Raporu Aç' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Açık ve Yaşlanan Teklifler' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Manager' }).click();
   await expect(page.getByRole('button', { name: 'Odoo Bağlantısı' })).toHaveCount(0);
@@ -132,6 +133,49 @@ test('open aging report renders filters, distributions, ownership, drill-down an
   expect(xlsxBody.subarray(0, 2).toString('ascii')).toBe('PK');
   await mkdir('test-results/report-export-previews', { recursive: true });
   await writeFile('test-results/report-export-previews/open-aging.xlsx', xlsxBody);
+});
+
+test('customer history supports search, direct route, patterns, JSON and XLSX', async ({ page, request }) => {
+  await page.goto('/reports/customer-quotation-history?q=Atlas');
+  await expect(page.getByRole('heading', { name: 'Müşteri Teklif Geçmişi' })).toBeVisible();
+  await expect(page.getByText('Atlas Hospital Group', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Geçmişi Aç' }).click();
+  await expect(page).toHaveURL(/customer-quotation-history\/101/u);
+  await expect(page.getByRole('heading', { name: 'Atlas Hospital Group' })).toBeVisible();
+  await expect(page.getByText('Dönem Teklifleri', { exact: true })).toBeVisible();
+  await expect(page.getByText('Tekrar Teklif', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Teklif Durum Dağılımı' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Atanan Personeller' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Teklif Zaman Çizelgesi' })).toBeVisible();
+
+  const response = await request.get(
+    '/api/reports/customer-quotation-history/101?dateFrom=2026-01-01&dateTo=2026-08-01',
+  );
+  expect(response.ok()).toBeTruthy();
+  const payload = (await response.json()) as {
+    readonly ok: boolean;
+    readonly result: {
+      readonly customer: { readonly id: number };
+      readonly metrics: { readonly quotationCount: number };
+      readonly scope: { readonly serverEnforced: boolean };
+    };
+  };
+  expect(payload.ok).toBeTruthy();
+  expect(payload.result.customer.id).toBe(101);
+  expect(payload.result.metrics.quotationCount).toBeGreaterThan(1);
+  expect(payload.result.scope.serverEnforced).toBe(true);
+
+  const xlsx = await request.get(
+    '/api/reports/customer-quotation-history/101/export?format=xlsx&dateFrom=2026-01-01&dateTo=2026-08-01',
+  );
+  expect(xlsx.ok()).toBeTruthy();
+  expect(xlsx.headers()['content-type']).toContain(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  const xlsxBody = await xlsx.body();
+  expect(xlsxBody.subarray(0, 2).toString('ascii')).toBe('PK');
+  await mkdir('test-results/report-export-previews', { recursive: true });
+  await writeFile('test-results/report-export-previews/customer-history.xlsx', xlsxBody);
 });
 
 test('health and safe status endpoints expose no secret values', async ({ request }) => {
