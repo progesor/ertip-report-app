@@ -51,7 +51,11 @@ test('personnel performance supports directory, amount analysis, JSON, filters a
   expect(payload.result.salesperson.id).toBe(10);
   expect(payload.result.metrics.quotationCount).toBeGreaterThan(0);
   expect(payload.result.metrics.realizedCount).toBeGreaterThan(0);
-  expect(payload.result.currencies.some(({ currencyCode }) => currencyCode === 'USD')).toBe(true);
+  const currencyCodes = payload.result.currencies.map(({ currencyCode }) => currencyCode);
+  expect(currencyCodes).toContain('USD');
+  expect(currencyCodes).toContain('EUR');
+  expect(new Set(currencyCodes).size).toBe(currencyCodes.length);
+  expect('mixedCurrencyTotal' in payload.result).toBe(false);
   expect(payload.result.scope.serverEnforced).toBe(true);
 
   const xlsx = await request.get(
