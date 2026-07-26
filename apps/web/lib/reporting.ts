@@ -1,9 +1,9 @@
 import { readRuntimeConfig } from '@ertip/config';
 import {
   createDatabasePool,
-  queryCustomerQuotationHistoryReport,
-  queryMonthlyQuotationReport,
-  queryOpenAgingQuotationReport,
+  queryCustomerQuotationHistoryReportWithAmounts,
+  queryMonthlyQuotationReportWithAmounts,
+  queryOpenAgingQuotationReportWithAmounts,
   queryPersonnelPerformanceReport,
   searchCustomerQuotationHistoryDirectory,
   searchPersonnelPerformanceDirectory,
@@ -13,13 +13,13 @@ import {
 import {
   normalizeQuotationStatus,
   type CustomerQuotationHistoryFilters,
-  type CustomerQuotationHistoryReportResult,
+  type CustomerQuotationHistoryReportWithAmounts,
   type MonthlyQuotationDetailRow,
   type MonthlyQuotationReportFilters,
-  type MonthlyQuotationReportResult,
+  type MonthlyQuotationReportWithAmounts,
   type MonthlyQuotationStatusFilter,
   type OpenAgingQuotationReportFilters,
-  type OpenAgingQuotationReportResult,
+  type OpenAgingQuotationReportWithAmounts,
   type PersonnelPerformanceFilters,
   type PersonnelPerformanceReportResult,
 } from '@ertip/reporting';
@@ -107,9 +107,9 @@ export async function getMonthlyQuotationReport(input: {
   readonly allowedBusinessUnitIds: readonly string[];
   readonly generatedAt?: Date;
   readonly detailLimit?: number;
-}): Promise<MonthlyQuotationReportResult> {
+}): Promise<MonthlyQuotationReportWithAmounts> {
   await getAppDatabase();
-  return queryMonthlyQuotationReport(getReportingPool(), input);
+  return queryMonthlyQuotationReportWithAmounts(getReportingPool(), input);
 }
 
 export async function getOpenAgingQuotationReport(input: {
@@ -117,9 +117,9 @@ export async function getOpenAgingQuotationReport(input: {
   readonly allowedBusinessUnitIds: readonly string[];
   readonly generatedAt?: Date;
   readonly detailLimit?: number;
-}): Promise<OpenAgingQuotationReportResult> {
+}): Promise<OpenAgingQuotationReportWithAmounts> {
   await getAppDatabase();
-  return queryOpenAgingQuotationReport(getReportingPool(), input);
+  return queryOpenAgingQuotationReportWithAmounts(getReportingPool(), input);
 }
 
 export async function getCustomerQuotationHistoryReport(input: {
@@ -127,9 +127,9 @@ export async function getCustomerQuotationHistoryReport(input: {
   readonly allowedBusinessUnitIds: readonly string[];
   readonly generatedAt?: Date;
   readonly timelineLimit?: number;
-}): Promise<CustomerQuotationHistoryReportResult> {
+}): Promise<CustomerQuotationHistoryReportWithAmounts> {
   await getAppDatabase();
-  return queryCustomerQuotationHistoryReport(getReportingPool(), input);
+  return queryCustomerQuotationHistoryReportWithAmounts(getReportingPool(), input);
 }
 
 export async function getCustomerQuotationHistoryDirectory(input: {

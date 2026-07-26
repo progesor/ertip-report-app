@@ -65,8 +65,11 @@ test('first Owner can bootstrap, enforce report auth, export and log back in', a
   );
   expect(exportEvent).toBeDefined();
   expect(exportEvent?.metadata.format).toBe('xlsx');
+  expect(Array.isArray(exportEvent?.metadata.currencyCodes)).toBe(true);
   expect('customerName' in (exportEvent?.metadata ?? {})).toBe(false);
   expect('amountTotal' in (exportEvent?.metadata ?? {})).toBe(false);
+  expect('quotationAmount' in (exportEvent?.metadata ?? {})).toBe(false);
+  expect('realizedAmount' in (exportEvent?.metadata ?? {})).toBe(false);
 
   const conversionExportEvent = audit.events.find(
     ({ action, entityId }) =>

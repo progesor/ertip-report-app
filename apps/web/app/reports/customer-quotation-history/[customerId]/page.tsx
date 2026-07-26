@@ -6,10 +6,14 @@ import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeCustomerQuotationHistoryFilters,
   type CustomerQuotationHistoryFilterInput,
-  type CustomerQuotationHistoryReportResult,
+  type CustomerQuotationHistoryReportWithAmounts,
 } from '@ertip/reporting';
 
 import { CustomerQuotationHistoryReportView } from '@/components/customer-quotation-history-report-view';
+import {
+  SourceCurrencyAmountDrawer,
+  SourceCurrencyAmountTable,
+} from '@/components/source-currency-amount-tables';
 import { getDemoCustomerQuotationHistoryReport } from '@/lib/demo-report';
 import { getCustomerQuotationHistoryReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -51,8 +55,8 @@ function resolveCustomerUnavailable<T>(loader: () => T): T {
 }
 
 async function resolveCustomerUnavailableAsync(
-  loader: () => Promise<CustomerQuotationHistoryReportResult>,
-): Promise<CustomerQuotationHistoryReportResult> {
+  loader: () => Promise<CustomerQuotationHistoryReportWithAmounts>,
+): Promise<CustomerQuotationHistoryReportWithAmounts> {
   try {
     return await loader();
   } catch (error) {
@@ -61,6 +65,26 @@ async function resolveCustomerUnavailableAsync(
     }
     throw error;
   }
+}
+
+function reportSurface(
+  result: CustomerQuotationHistoryReportWithAmounts,
+  user: { readonly displayName: string; readonly email: string; readonly role: 'owner' | 'manager' },
+  demoMode: boolean,
+) {
+  return (
+    <>
+      <CustomerQuotationHistoryReportView demoMode={demoMode} result={result} user={user} />
+      <SourceCurrencyAmountDrawer label="Müşteri Tutarları">
+        <SourceCurrencyAmountTable
+          description="Müşterinin seçili dönemdeki teklifleri kaynak para biriminde ayrı gösterilir."
+          eyebrow="Müşteri tutar geçmişi"
+          rows={result.amounts}
+          title="Teklif ve Gerçekleşen Satış Tutarları"
+        />
+      </SourceCurrencyAmountDrawer>
+    </>
+  );
 }
 
 export default async function CustomerQuotationHistoryPage({
@@ -87,12 +111,10 @@ export default async function CustomerQuotationHistoryPage({
       getDemoCustomerQuotationHistoryReport(filters, generatedAt),
     );
 
-    return (
-      <CustomerQuotationHistoryReportView
-        demoMode
-        result={result}
-        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-      />
+    return reportSurface(
+      result,
+      { displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' },
+      true,
     );
   }
 
@@ -115,11 +137,9 @@ export default async function CustomerQuotationHistoryPage({
     }),
   );
 
-  return (
-    <CustomerQuotationHistoryReportView
-      demoMode={false}
-      result={result}
-      user={{ displayName: user.displayName, email: user.email, role: user.role }}
-    />
+  return reportSurface(
+    result,
+    { displayName: user.displayName, email: user.email, role: user.role },
+    false,
   );
 }

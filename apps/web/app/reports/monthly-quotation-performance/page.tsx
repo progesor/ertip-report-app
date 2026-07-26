@@ -6,9 +6,14 @@ import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeMonthlyQuotationReportFilters,
   type MonthlyQuotationReportFilterInput,
+  type MonthlyQuotationReportWithAmounts,
 } from '@ertip/reporting';
 
 import { MonthlyQuotationReportView } from '@/components/monthly-quotation-report-view';
+import {
+  SourceCurrencyAmountComparisonTable,
+  SourceCurrencyAmountDrawer,
+} from '@/components/source-currency-amount-tables';
 import { getDemoMonthlyQuotationReport } from '@/lib/demo-report';
 import { getMonthlyQuotationReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -40,6 +45,25 @@ function createFilterInput(searchParams: PageSearchParams): MonthlyQuotationRepo
   };
 }
 
+function reportSurface(
+  result: MonthlyQuotationReportWithAmounts,
+  user: { readonly displayName: string; readonly email: string; readonly role: 'owner' | 'manager' },
+  demoMode: boolean,
+) {
+  return (
+    <>
+      <MonthlyQuotationReportView demoMode={demoMode} result={result} user={user} />
+      <SourceCurrencyAmountDrawer label="Tutar Analizi">
+        <SourceCurrencyAmountComparisonTable
+          eyebrow="Aylık kaynak para birimi"
+          rows={result.amounts}
+          title="Teklif ve Gerçekleşen Satış Tutarları"
+        />
+      </SourceCurrencyAmountDrawer>
+    </>
+  );
+}
+
 export default async function MonthlyQuotationPerformancePage({
   searchParams,
 }: Readonly<{ searchParams: Promise<PageSearchParams> }>) {
@@ -54,12 +78,10 @@ export default async function MonthlyQuotationPerformancePage({
       now: generatedAt,
     });
     const result = getDemoMonthlyQuotationReport(filters, generatedAt);
-    return (
-      <MonthlyQuotationReportView
-        demoMode
-        result={result}
-        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-      />
+    return reportSurface(
+      result,
+      { displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' },
+      true,
     );
   }
 
@@ -85,11 +107,9 @@ export default async function MonthlyQuotationPerformancePage({
     detailLimit: 500,
   });
 
-  return (
-    <MonthlyQuotationReportView
-      demoMode={false}
-      result={result}
-      user={{ displayName: user.displayName, email: user.email, role: user.role }}
-    />
+  return reportSurface(
+    result,
+    { displayName: user.displayName, email: user.email, role: user.role },
+    false,
   );
 }

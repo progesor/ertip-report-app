@@ -6,3 +6,4 @@ export * from './open-aging-quotation-report.ts';
 export * from './personnel-performance-report.ts';
 export * from './quotation-conversion-report.ts';
 export * from './report-result-contract.ts';
+export * from './source-currency-report-extensions.ts';

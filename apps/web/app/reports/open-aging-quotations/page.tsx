@@ -6,9 +6,14 @@ import {
   INTERNATIONAL_BUSINESS_UNIT_ID,
   normalizeOpenAgingQuotationReportFilters,
   type OpenAgingQuotationReportFilterInput,
+  type OpenAgingQuotationReportWithAmounts,
 } from '@ertip/reporting';
 
 import { OpenAgingQuotationReportView } from '@/components/open-aging-quotation-report-view';
+import {
+  SourceCurrencyAmountDrawer,
+  SourceCurrencyAmountTable,
+} from '@/components/source-currency-amount-tables';
 import { getDemoOpenAgingQuotationReport } from '@/lib/demo-report';
 import { getOpenAgingQuotationReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
@@ -38,6 +43,26 @@ function createFilterInput(searchParams: PageSearchParams): OpenAgingQuotationRe
   };
 }
 
+function reportSurface(
+  result: OpenAgingQuotationReportWithAmounts,
+  user: { readonly displayName: string; readonly email: string; readonly role: 'owner' | 'manager' },
+  demoMode: boolean,
+) {
+  return (
+    <>
+      <OpenAgingQuotationReportView demoMode={demoMode} result={result} user={user} />
+      <SourceCurrencyAmountDrawer label="Açık Tutarlar">
+        <SourceCurrencyAmountTable
+          description="Takipteki teklif tutarları kaynak para biriminde gösterilir; süresi dolmuş teklifler açık tutara dahil edilmez."
+          eyebrow="Operasyonel tutar analizi"
+          rows={result.amounts}
+          title="Açık ve Yaşlanan Teklif Tutarları"
+        />
+      </SourceCurrencyAmountDrawer>
+    </>
+  );
+}
+
 export default async function OpenAgingQuotationsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<PageSearchParams> }>) {
@@ -51,12 +76,10 @@ export default async function OpenAgingQuotationsPage({
       allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
     });
     const result = getDemoOpenAgingQuotationReport(filters, generatedAt);
-    return (
-      <OpenAgingQuotationReportView
-        demoMode
-        result={result}
-        user={{ displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' }}
-      />
+    return reportSurface(
+      result,
+      { displayName: 'Anıl Akman', email: 'demo@ertipmedical.com', role: 'owner' },
+      true,
     );
   }
 
@@ -81,11 +104,9 @@ export default async function OpenAgingQuotationsPage({
     detailLimit: 500,
   });
 
-  return (
-    <OpenAgingQuotationReportView
-      demoMode={false}
-      result={result}
-      user={{ displayName: user.displayName, email: user.email, role: user.role }}
-    />
+  return reportSurface(
+    result,
+    { displayName: user.displayName, email: user.email, role: user.role },
+    false,
   );
 }

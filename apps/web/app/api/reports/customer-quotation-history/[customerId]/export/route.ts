@@ -8,14 +8,12 @@ import {
   type CustomerQuotationHistoryFilterInput,
 } from '@ertip/reporting';
 
-import {
-  buildCustomerQuotationHistoryXlsx,
-  createCustomerHistoryExportFilename,
-} from '@/lib/customer-history-report-export';
+import { createCustomerHistoryExportFilename } from '@/lib/customer-history-report-export';
 import { getAppDatabase } from '@/lib/database';
 import { getDemoCustomerQuotationHistoryReport } from '@/lib/demo-report';
 import { getCustomerQuotationHistoryReport } from '@/lib/reporting';
 import { getCurrentSession } from '@/lib/server-auth';
+import { buildCustomerQuotationHistoryXlsxWithAmounts } from '@/lib/source-currency-report-export';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -82,7 +80,7 @@ export async function GET(
           generatedAt,
           timelineLimit: 10_000,
         });
-    const buffer = await buildCustomerQuotationHistoryXlsx(report);
+    const buffer = await buildCustomerQuotationHistoryXlsxWithAmounts(report);
     const filename = createCustomerHistoryExportFilename(report);
 
     if (session) {
@@ -105,6 +103,7 @@ export async function GET(
           format: 'xlsx',
           scope: 'filtered',
           detailCount: report.timelineTotalCount,
+          currencyCodes: report.amounts.map(({ currencyCode }) => currencyCode),
         },
       });
     }

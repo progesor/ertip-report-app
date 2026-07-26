@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
   createDatabasePool,
   getOdooCurrencyCodeMetaKey,
-  queryMonthlyQuotationReport,
+  queryMonthlyQuotationReportWithAmounts,
   upsertOdooCurrencyCodes,
 } from '@ertip/db';
 import {
@@ -16,7 +16,7 @@ import {
 const connectionString = process.env.DATABASE_URL?.trim();
 
 test(
-  'monthly quotation report reconciles PostgreSQL fixture with scoped filters and order currencies',
+  'monthly quotation report reconciles PostgreSQL fixture with scoped filters and separated source currencies',
   { skip: !connectionString },
   async () => {
     assert.ok(connectionString);
@@ -82,7 +82,7 @@ test(
         allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
         now: new Date('2026-07-25T12:00:00.000Z'),
       });
-      const result = await queryMonthlyQuotationReport(pool, {
+      const result = await queryMonthlyQuotationReportWithAmounts(pool, {
         filters,
         allowedBusinessUnitIds: [INTERNATIONAL_BUSINESS_UNIT_ID],
         generatedAt: new Date('2026-07-25T12:00:00.000Z'),
@@ -104,8 +104,15 @@ test(
       assert.equal(result.details.find(({ id }) => id === orderIds[2])?.currencyCode, 'EUR');
       assert.equal(result.lastSyncAt === null, false);
 
+      assert.equal(result.amounts.find(({ currencyCode }) => currencyCode === 'USD')?.current.realizedAmount, '1000');
+      assert.equal(result.amounts.find(({ currencyCode }) => currencyCode === 'USD')?.previous.realizedAmount, '700');
+      assert.equal(result.amounts.find(({ currencyCode }) => currencyCode === 'TRY')?.current.openAmount, '800');
+      assert.equal(result.amounts.find(({ currencyCode }) => currencyCode === 'EUR')?.current.expiredAmount, '500');
+      assert.equal(new Set(result.amounts.map(({ currencyCode }) => currencyCode)).size, result.amounts.length);
+      assert.equal('mixedCurrencyTotal' in result, false);
+
       await assert.rejects(
-        queryMonthlyQuotationReport(pool, {
+        queryMonthlyQuotationReportWithAmounts(pool, {
           filters,
           allowedBusinessUnitIds: ['22222222-2222-4222-8222-222222222222'],
         }),
