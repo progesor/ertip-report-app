@@ -93,8 +93,10 @@
     linear-gradient(135deg, rgba(25, 49, 66, 0.94), rgba(14, 29, 42, 0.96) 58%, rgba(44, 35, 29, 0.88));
 }
 
-.workspace-report-host .report-heading h2 {
-  font-size: clamp(27px, 3.2vw, 43px);
+@media screen {
+  .workspace-report-host .report-heading h2 {
+    display: none;
+  }
 }
 
 .workspace-report-host .report-filters {
@@ -195,5 +197,9 @@
   .workspace-report-host .report-topbar,
   .workspace-report-host .report-sidebar {
     display: none !important;
+  }
+
+  .workspace-report-host .report-heading h2 {
+    display: block !important;
   }
 }
