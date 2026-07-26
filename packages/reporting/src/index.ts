@@ -1,5 +1,7 @@
+export * from './currency-amount-metrics.ts';
 export * from './customer-quotation-history-report.ts';
 export * from './metrics.ts';
 export * from './monthly-quotation-report.ts';
 export * from './open-aging-quotation-report.ts';
+export * from './personnel-performance-report.ts';
 export * from './report-result-contract.ts';
