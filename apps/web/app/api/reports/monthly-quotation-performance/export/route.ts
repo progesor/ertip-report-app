@@ -11,12 +11,14 @@ import {
 import { getAppDatabase } from '@/lib/database';
 import { getDemoMonthlyQuotationReport } from '@/lib/demo-report';
 import {
-  buildMonthlyQuotationPdf,
   buildMonthlyQuotationXlsx,
   createMonthlyQuotationExportFilename,
   withCompleteMonthlyQuotationDetails,
-  type MonthlyQuotationPdfScope,
 } from '@/lib/report-export';
+import {
+  buildMonthlyQuotationPdf,
+  type MonthlyQuotationPdfScope,
+} from '@/lib/report-pdf';
 import {
   getMonthlyQuotationExportDetails,
   getMonthlyQuotationReport,
