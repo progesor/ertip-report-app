@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { getSafeRuntimeStatus, readRuntimeConfig } from '@ertip/config';
 
 import { AuthPage } from '@/components/auth-page';
@@ -26,12 +28,12 @@ function ReportDashboardEntry() {
     >
       <div className="panel-title">
         <div><span className="eyebrow">Hızlı erişim</span><h3>Raporlar</h3></div>
-        <a href="/reports/monthly-quotation-performance">Tümü</a>
+        <Link href="/reports/monthly-quotation-performance">Tümü</Link>
       </div>
       <div style={{ display: 'grid', gap: 10 }}>
-        <a className="button" href="/reports/monthly-quotation-performance">Aylık Teklif Performansı</a>
-        <a className="button" href="/reports/open-aging-quotations">Açık ve Yaşlanan Teklifler</a>
-        <a className="button primary" href="/reports/customer-quotation-history">Müşteri Teklif Geçmişi</a>
+        <Link className="button" href="/reports/monthly-quotation-performance">Aylık Teklif Performansı</Link>
+        <Link className="button" href="/reports/open-aging-quotations">Açık ve Yaşlanan Teklifler</Link>
+        <Link className="button primary" href="/reports/customer-quotation-history">Müşteri Teklif Geçmişi</Link>
       </div>
     </aside>
   );
