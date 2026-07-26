@@ -35,7 +35,7 @@ test('creates a structured XLSX workbook from the canonical report result', asyn
   const report = createReport();
   const buffer = await buildMonthlyQuotationXlsx(report);
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  await workbook.xlsx.load(buffer as never);
 
   assert.ok(buffer.byteLength > 1_000);
   assert.deepEqual(
