@@ -3,15 +3,18 @@ import {
   buildMonthlyQuotationReport,
   buildOpenAgingQuotationReport,
   buildPersonnelPerformanceReport,
+  extendCustomerQuotationHistoryReportWithSourceCurrencyAmounts,
+  extendMonthlyQuotationReportWithSourceCurrencyAmounts,
+  extendOpenAgingQuotationReportWithSourceCurrencyAmounts,
   INTERNATIONAL_BUSINESS_UNIT_ID,
   type CustomerQuotationHistoryFilters,
-  type CustomerQuotationHistoryReportResult,
+  type CustomerQuotationHistoryReportWithAmounts,
   type CustomerQuotationHistorySourceRecord,
   type MonthlyQuotationReportFilters,
-  type MonthlyQuotationReportResult,
+  type MonthlyQuotationReportWithAmounts,
   type MonthlyQuotationSourceRecord,
   type OpenAgingQuotationReportFilters,
-  type OpenAgingQuotationReportResult,
+  type OpenAgingQuotationReportWithAmounts,
   type OpenAgingQuotationSourceRecord,
   type PersonnelPerformanceFilters,
   type PersonnelPerformanceReportResult,
@@ -119,8 +122,8 @@ const demoSalespeople = salespeople.map(({ id, name }) => ({ id, displayName: na
 export function getDemoMonthlyQuotationReport(
   filters: MonthlyQuotationReportFilters,
   generatedAt: Date,
-): MonthlyQuotationReportResult {
-  return buildMonthlyQuotationReport({
+): MonthlyQuotationReportWithAmounts {
+  const report = buildMonthlyQuotationReport({
     records: demoRecords,
     filters,
     businessUnit: demoBusinessUnit,
@@ -128,14 +131,18 @@ export function getDemoMonthlyQuotationReport(
     generatedAt: generatedAt.toISOString(),
     lastSyncAt: '2026-07-25T20:04:00.000Z',
   });
+  return extendMonthlyQuotationReportWithSourceCurrencyAmounts({
+    report,
+    records: demoRecords,
+  });
 }
 
 export function getDemoOpenAgingQuotationReport(
   filters: OpenAgingQuotationReportFilters,
   generatedAt: Date,
   detailLimit = 500,
-): OpenAgingQuotationReportResult {
-  return buildOpenAgingQuotationReport({
+): OpenAgingQuotationReportWithAmounts {
+  const report = buildOpenAgingQuotationReport({
     records: demoRecords,
     filters,
     businessUnit: demoBusinessUnit,
@@ -145,14 +152,18 @@ export function getDemoOpenAgingQuotationReport(
     lastSyncAt: '2026-07-25T20:04:00.000Z',
     detailLimit,
   });
+  return extendOpenAgingQuotationReportWithSourceCurrencyAmounts({
+    report,
+    records: demoRecords,
+  });
 }
 
 export function getDemoCustomerQuotationHistoryReport(
   filters: CustomerQuotationHistoryFilters,
   generatedAt: Date,
   timelineLimit = 500,
-): CustomerQuotationHistoryReportResult {
-  return buildCustomerQuotationHistoryReport({
+): CustomerQuotationHistoryReportWithAmounts {
+  const report = buildCustomerQuotationHistoryReport({
     records: demoRecords,
     filters,
     businessUnit: demoBusinessUnit,
@@ -161,6 +172,10 @@ export function getDemoCustomerQuotationHistoryReport(
     generatedAt: generatedAt.toISOString(),
     lastSyncAt: '2026-07-25T20:04:00.000Z',
     timelineLimit,
+  });
+  return extendCustomerQuotationHistoryReportWithSourceCurrencyAmounts({
+    report,
+    records: demoRecords,
   });
 }
 
@@ -201,10 +216,12 @@ export function getDemoCustomerQuotationHistoryDirectory(search = '') {
       displayName: records[0]?.customerName ?? 'Demo Customer',
       quotationCount: records.length,
       salespersonCount: new Set(records.map(({ salespersonId }) => salespersonId ?? 'unassigned')).size,
-      firstQuotationDate: [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
-        ?.createDate ?? '',
-      lastQuotationDate: [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
-        ?.createDate ?? '',
+      firstQuotationDate:
+        [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
+          ?.createDate ?? '',
+      lastQuotationDate:
+        [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
+          ?.createDate ?? '',
     }))
     .filter(({ displayName }) => !query || displayName.toLocaleLowerCase('tr-TR').includes(query))
     .sort(
@@ -229,10 +246,12 @@ export function getDemoPersonnelPerformanceDirectory(search = '') {
       quotationCount: records.length,
       realizedCount: records.filter(({ state }) => state === 'sale').length,
       customerCount: new Set(records.map(({ customerId }) => customerId)).size,
-      firstQuotationDate: [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
-        ?.createDate ?? '',
-      lastQuotationDate: [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
-        ?.createDate ?? '',
+      firstQuotationDate:
+        [...records].sort((left, right) => left.createDate.localeCompare(right.createDate))[0]
+          ?.createDate ?? '',
+      lastQuotationDate:
+        [...records].sort((left, right) => right.createDate.localeCompare(left.createDate))[0]
+          ?.createDate ?? '',
     }))
     .filter(({ displayName }) => !query || displayName.toLocaleLowerCase('tr-TR').includes(query))
     .sort(
