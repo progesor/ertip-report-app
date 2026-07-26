@@ -128,7 +128,7 @@ export async function GET(request: Request): Promise<Response> {
     if (session) {
       const database = await getAppDatabase();
       await database.recordAudit({
-        actorUserId: session.userId,
+        actorUserId: session.id,
         action: `report.export.${format}`,
         entityType: 'report_definition',
         entityId: completeReport.definition.code,
